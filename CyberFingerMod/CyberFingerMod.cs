@@ -32,6 +32,11 @@ public class CyberFingerMod : ResoniteMod {
 		private static readonly MethodInfo EndGrabMethod = typeof(InteractionHandler)
 			.GetMethod("EndGrab", BindingFlags.Instance | BindingFlags.NonPublic);
 
+		// reflect the protected _laserSlot field
+		private static readonly FieldInfo LaserSlotField =
+			typeof(InteractionHandler).GetField("_laserSlot", BindingFlags.Instance | BindingFlags.NonPublic);
+
+
 		static bool Prefix(InteractionHandler __instance) {
 			//Msg("Postfix from CyberFingerMod");
 
@@ -53,11 +58,27 @@ public class CyberFingerMod : ResoniteMod {
 			float3 globalPoint = __instance.CurrentTip;
 			float3 globalDirection = __instance.CurrentTipForward;
 
-			float3 offset = __instance.Slot.GlobalPointToLocal(in globalPoint);
-			float3 forward = __instance.Slot.GlobalDirectionToLocal(in globalDirection);
-			Userspace.SetWorldControllerData(__instance.Side, __instance.ActiveTool?.IsInUse ?? false, offset, forward, __instance.Laser.Slot.LocalScaleToSpace(__instance.Laser.CurrentPointDistance, __instance.LocalUserRoot.Slot));
+			//float3 offset = __instance.Slot.GlobalPointToLocal(in globalPoint);
+			//float3 forward = __instance.Slot.GlobalDirectionToLocal(in globalDirection);
+			//Userspace.SetWorldControllerData(__instance.Side, __instance.ActiveTool?.IsInUse ?? false, offset, forward, __instance.Laser.Slot.LocalScaleToSpace(__instance.Laser.CurrentPointDistance, __instance.LocalUserRoot.Slot));
+
+			float3 a = controllerData.pointOffset;
+			float3 a2 = controllerData.forward;
+
+			floatQ localRotation = floatQ.LookRotation(in a2, float3.Up);
+			//_laserSlot.Target.LocalPosition = base.Slot.LocalPointToSpace(in a, _laserSlot.Target.Parent);
+			//_laserSlot.Target.LocalRotation = base.Slot.LocalRotationToSpace(in localRotation, _laserSlot.Target.Parent);
+
+			// now fetch _laserSlot via reflection
+			// it's a SyncRef<Slot>, so first unbox it:
+			var laserSlotRef = (SyncRef<Slot>)LaserSlotField.GetValue(__instance);
+			// then its Target is the actual Slot
+			Slot laserSlot = laserSlotRef.Target;
+			laserSlot.LocalPosition = __instance.Slot.LocalPointToSpace(in a, laserSlot.Parent);
+			laserSlot.LocalRotation = __instance.Slot.LocalRotationToSpace(in localRotation, laserSlot.Parent);
 
 			Userspace.SetUserspaceLaserActive(__instance.Side, __instance.Laser.LaserActive, __instance.Laser.CurrentHit != null);
+
 
 			return false;
 
