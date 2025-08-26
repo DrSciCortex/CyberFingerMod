@@ -1,3 +1,4 @@
+using System;
 using System.Reflection;
 
 using Elements.Core;
@@ -6,6 +7,8 @@ using FrooxEngine;
 
 using HarmonyLib;
 
+using Renderite.Shared;
+
 using ResoniteModLoader;
 
 using static Elements.Core.Pool;
@@ -13,7 +16,7 @@ using static Elements.Core.Pool;
 namespace CyberFingerMod;
 //More info on creating mods can be found https://github.com/resonite-modding-group/ResoniteModLoader/wiki/Creating-Mods
 public class CyberFingerMod : ResoniteMod {
-	internal const string VERSION_CONSTANT = "0.0.1"; //Changing the version here updates it in all locations needed
+	internal const string VERSION_CONSTANT = "0.0.2"; //Changing the version here updates it in all locations needed
 	public override string Name => "CyberFingerMod";
 	public override string Author => "Dr.Sci.Cortex";
 	public override string Version => VERSION_CONSTANT;
@@ -30,11 +33,13 @@ public class CyberFingerMod : ResoniteMod {
 
 		// reflect the private EndGrab method once:
 		private static readonly MethodInfo EndGrabMethod = typeof(InteractionHandler)
-			.GetMethod("EndGrab", BindingFlags.Instance | BindingFlags.NonPublic);
+			.GetMethod("EndGrab", BindingFlags.Instance | BindingFlags.NonPublic)
+			?? throw new MissingMethodException("InteractionHandler.EndGrab not found");
 
 		// reflect the protected _laserSlot field
 		private static readonly FieldInfo LaserSlotField =
-			typeof(InteractionHandler).GetField("_laserSlot", BindingFlags.Instance | BindingFlags.NonPublic);
+			typeof(InteractionHandler).GetField("_laserSlot", BindingFlags.Instance | BindingFlags.NonPublic)
+			?? throw new MissingFieldException("InteractionHandler._laserSlot not found");
 
 
 		static bool Prefix(InteractionHandler __instance) {
@@ -55,8 +60,8 @@ public class CyberFingerMod : ResoniteMod {
 				EndGrabMethod.Invoke(__instance, null);
 			}
 
-			float3 globalPoint = __instance.CurrentTip;
-			float3 globalDirection = __instance.CurrentTipForward;
+			//float3 globalPoint = __instance.CurrentTip;
+			//float3 globalDirection = __instance.CurrentTipForward;
 
 			//float3 offset = __instance.Slot.GlobalPointToLocal(in globalPoint);
 			//float3 forward = __instance.Slot.GlobalDirectionToLocal(in globalDirection);
@@ -70,10 +75,16 @@ public class CyberFingerMod : ResoniteMod {
 			//_laserSlot.Target.LocalRotation = base.Slot.LocalRotationToSpace(in localRotation, _laserSlot.Target.Parent);
 
 			// now fetch _laserSlot via reflection
+
+			// old 4.7.2
 			// it's a SyncRef<Slot>, so first unbox it:
-			var laserSlotRef = (SyncRef<Slot>)LaserSlotField.GetValue(__instance);
+			//#var laserSlotRef = (SyncRef<Slot>)LaserSlotField.GetValue(__instance);
 			// then its Target is the actual Slot
-			Slot laserSlot = laserSlotRef.Target;
+			//#Slot laserSlot = laserSlotRef.Target;
+
+			// new 9.0
+			var laserSlot = (Slot)LaserSlotField.GetValue(__instance)!;
+
 			laserSlot.LocalPosition = __instance.Slot.LocalPointToSpace(in a, laserSlot.Parent);
 			laserSlot.LocalRotation = __instance.Slot.LocalRotationToSpace(in localRotation, laserSlot.Parent);
 
