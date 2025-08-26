@@ -16,10 +16,10 @@ using static Elements.Core.Pool;
 namespace CyberFingerMod;
 //More info on creating mods can be found https://github.com/resonite-modding-group/ResoniteModLoader/wiki/Creating-Mods
 public class CyberFingerMod : ResoniteMod {
-	internal const string VERSION_CONSTANT = "0.0.2"; //Changing the version here updates it in all locations needed
+	//internal const string VERSION_CONSTANT = "0.0.2"; //Changing the version here updates it in all locations needed
 	public override string Name => "CyberFingerMod";
 	public override string Author => "Dr.Sci.Cortex";
-	public override string Version => VERSION_CONSTANT;
+
 	public override string Link => "https://github.com/DrSciCortex/CyberFingerMod/";
 
 	public override void OnEngineInit() {
@@ -27,72 +27,75 @@ public class CyberFingerMod : ResoniteMod {
 		harmony.PatchAll();
 	}
 
+	// Cache at load
+	private static readonly string _version = ResolveVersion();
+	public override string Version => _version;
+
+	private static string ResolveVersion() {
+		var asm = typeof(CyberFingerMod).Assembly;
+
+		// 1) FileVersion
+		var file = asm.GetCustomAttribute<AssemblyFileVersionAttribute>()?.Version;
+		if (!string.IsNullOrWhiteSpace(file)) return file;
+
+		// 2) InformationalVersion
+		var info = asm.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion;
+		if (!string.IsNullOrWhiteSpace(info)) return info;
+
+		// 3) AssemblyVersion
+		var av = asm.GetName().Version?.ToString();
+		if (!string.IsNullOrWhiteSpace(av)) return av;
+
+		return "X.Y.Z-failed-to-find-version";
+	}
+
 	//Implement the HarmonyPatch
 	[HarmonyPatch(typeof(InteractionHandler), "UpdateUserspaceToolOffsets")]
 	public static class InteractionHandler_UpdateUserspaceToolOffsets_Patch {
-
-		// reflect the private EndGrab method once:
-		private static readonly MethodInfo EndGrabMethod = typeof(InteractionHandler)
-			.GetMethod("EndGrab", BindingFlags.Instance | BindingFlags.NonPublic)
-			?? throw new MissingMethodException("InteractionHandler.EndGrab not found");
 
 		// reflect the protected _laserSlot field
 		private static readonly FieldInfo LaserSlotField =
 			typeof(InteractionHandler).GetField("_laserSlot", BindingFlags.Instance | BindingFlags.NonPublic)
 			?? throw new MissingFieldException("InteractionHandler._laserSlot not found");
 
+		// Cache the DoRaycast method from Laser
+		private static readonly MethodInfo DoRaycastMethod =
+			typeof(Laser).GetMethod("DoRaycast",
+				BindingFlags.Instance | BindingFlags.NonPublic)
+			?? throw new MissingMethodException("Laser.DoRaycast not found");
 
-		static bool Prefix(InteractionHandler __instance) {
-			//Msg("Postfix from CyberFingerMod");
+		static void Postfix(InteractionHandler __instance) {
+			// only override for userspace
+			if (__instance.World != Userspace.UserspaceWorld)
+				return;
 
-			bool userspace = __instance.World == Userspace.UserspaceWorld;
-			Userspace.ControllerData controllerData = Userspace.GetControllerData(__instance.Side);
-			
-			// OK to run the original method
-			if (!userspace) 
-				return true;
+			return; 
 
-			// Otherwise ... a revised method that doesn't override the laser position, but is otherwise equivalent.
-			controllerData.userspaceController = __instance;
-			controllerData.userspaceHoldingThings = __instance.IsHoldingObjects;
-			if (controllerData.worldHoldingThings) {
-				// invoke the private EndGrab()
-				EndGrabMethod.Invoke(__instance, null);
-			}
+			// copy properties to locals before using `in`
+			float3 tip = __instance.CurrentTip;
+			float3 fwd = __instance.CurrentTipForward;
 
-			//float3 globalPoint = __instance.CurrentTip;
-			//float3 globalDirection = __instance.CurrentTipForward;
 
-			//float3 offset = __instance.Slot.GlobalPointToLocal(in globalPoint);
-			//float3 forward = __instance.Slot.GlobalDirectionToLocal(in globalDirection);
-			//Userspace.SetWorldControllerData(__instance.Side, __instance.ActiveTool?.IsInUse ?? false, offset, forward, __instance.Laser.Slot.LocalScaleToSpace(__instance.Laser.CurrentPointDistance, __instance.LocalUserRoot.Slot));
+			// Compute the "world-style" tip/forward
+			float3 localTip = __instance.Slot.GlobalPointToLocal(in tip);
+			float3 localForward = __instance.Slot.GlobalDirectionToLocal(in fwd);
 
-			float3 a = controllerData.pointOffset;
-			float3 a2 = controllerData.forward;
+			floatQ localRotation = floatQ.LookRotation(in localForward, float3.Up);
 
-			floatQ localRotation = floatQ.LookRotation(in a2, float3.Up);
-			//_laserSlot.Target.LocalPosition = base.Slot.LocalPointToSpace(in a, _laserSlot.Target.Parent);
-			//_laserSlot.Target.LocalRotation = base.Slot.LocalRotationToSpace(in localRotation, _laserSlot.Target.Parent);
-
-			// now fetch _laserSlot via reflection
-
-			// old 4.7.2
-			// it's a SyncRef<Slot>, so first unbox it:
-			//#var laserSlotRef = (SyncRef<Slot>)LaserSlotField.GetValue(__instance);
-			// then its Target is the actual Slot
-			//#Slot laserSlot = laserSlotRef.Target;
-
-			// new 9.0
 			var laserSlot = (Slot)LaserSlotField.GetValue(__instance)!;
 
-			laserSlot.LocalPosition = __instance.Slot.LocalPointToSpace(in a, laserSlot.Parent);
+			laserSlot.LocalPosition = __instance.Slot.LocalPointToSpace(in localTip, laserSlot.Parent);
 			laserSlot.LocalRotation = __instance.Slot.LocalRotationToSpace(in localRotation, laserSlot.Parent);
 
-			Userspace.SetUserspaceLaserActive(__instance.Side, __instance.Laser.LaserActive, __instance.Laser.CurrentHit != null);
-
-
-			return false;
+			// Re-set active state against the CURRENT hit (raycast comes from Laser.Update)
+			Userspace.SetUserspaceLaserActive(
+				__instance.Side,
+				__instance.Laser.LaserActive,
+				__instance.Laser.CurrentHit != null
+			);
 
 		}
+
+
 	}
 }

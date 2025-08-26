@@ -2,8 +2,22 @@
 	<PropertyGroup>
 		<RootNamespace>CyberFingerMod</RootNamespace>
 		<AssemblyName>CyberFingerMod</AssemblyName>
-		<GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+		<GenerateAssemblyInfo>true</GenerateAssemblyInfo>
 		<TargetFramework>net9.0</TargetFramework>
+  		<AssemblyTitle>CyberFingerMod</AssemblyTitle>
+  		<AssemblyProduct>CyberFingerMod</AssemblyProduct>
+  		<AssemblyCompany>Dr.Sci.Cortex</AssemblyCompany>
+  		<AssemblyDescription>A Resonite Mod that improves the CyberFinger experience</AssemblyDescription>
+  		<AssemblyCopyright>Copyright © 2025 Dr.Sci.Cortex</AssemblyCopyright>
+
+    <!-- bump this once -->
+    <Version>0.0.3</Version>
+
+    <!-- sync all assembly/file/product versions to Version -->
+    <AssemblyVersion>$(Version).0</AssemblyVersion>
+    <FileVersion>$(Version).0</FileVersion>
+    <InformationalVersion>$(Version)</InformationalVersion>
+
 		<FileAlignment>512</FileAlignment>
 		<LangVersion>12.0</LangVersion>
 		<Nullable>enable</Nullable>
