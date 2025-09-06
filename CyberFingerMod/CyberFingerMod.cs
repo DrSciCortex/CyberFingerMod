@@ -16,10 +16,10 @@ using static Elements.Core.Pool;
 namespace CyberFingerMod;
 //More info on creating mods can be found https://github.com/resonite-modding-group/ResoniteModLoader/wiki/Creating-Mods
 public class CyberFingerMod : ResoniteMod {
-	//internal const string VERSION_CONSTANT = "0.0.2"; //Changing the version here updates it in all locations needed
+	internal const string VERSION_CONSTANT = "1.0.0"; //Changing the version here updates it in all locations needed
 	public override string Name => "CyberFingerMod";
-	public override string Author => "Dr.Sci.Cortex";
-
+	public override string Author => "DrSciCortex";
+	public override string Version => VERSION_CONSTANT;
 	public override string Link => "https://github.com/DrSciCortex/CyberFingerMod/";
 
 	// RML config handles UI + persistence for you
@@ -42,30 +42,8 @@ public class CyberFingerMod : ResoniteMod {
 		_config = GetConfiguration();  // creates/loads config and UI
 		_config?.Save(true);
 
-		Harmony harmony = new Harmony("com.drscicortex.CyberFingerMod");
+		Harmony harmony = new Harmony("com.scicortex.CyberFingerMod");
 		harmony.PatchAll();
-	}
-
-	// Cache at load
-	private static readonly string _version = ResolveVersion();
-	public override string Version => _version;
-
-	private static string ResolveVersion() {
-		var asm = typeof(CyberFingerMod).Assembly;
-
-		// 1) FileVersion
-		var file = asm.GetCustomAttribute<AssemblyFileVersionAttribute>()?.Version;
-		if (!string.IsNullOrWhiteSpace(file)) return file;
-
-		// 2) InformationalVersion
-		var info = asm.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion;
-		if (!string.IsNullOrWhiteSpace(info)) return info;
-
-		// 3) AssemblyVersion
-		var av = asm.GetName().Version?.ToString();
-		if (!string.IsNullOrWhiteSpace(av)) return av;
-
-		return "X.Y.Z-failed-to-find-version";
 	}
 
 	//Implement the HarmonyPatch
