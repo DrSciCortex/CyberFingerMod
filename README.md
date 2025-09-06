@@ -18,6 +18,7 @@ Usage:
 Pin AutoHotKey to start or taskbar.  After launching once, Right click  and the script will be in the quick launch list
 After launching the script, it will how up in your dock.
 
+```
 ; Keep Resonite focused (AHK v2)
 ; - Forces focus back to Resonite if anything steals it
 ; - Restores if minimized
@@ -25,4 +26,4 @@ After launching the script, it will how up in your dock.
 ;     Ctrl+Alt+F  -> Toggle force-focus on/off
 ;     Ctrl+Alt+T  -> Toggle AlwaysOnTop
 ;     Ctrl+Alt+Q  -> Quit script
-
+```
