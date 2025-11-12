@@ -41,6 +41,21 @@ public class CyberFingerMod : ResoniteMod {
 	internal static bool ForceOverride =>
 		_config?.GetValue(ForceOverrideKey) ?? true;
 
+
+	// The toggle you'll see in the UI (default: true)
+	[AutoRegisterConfigKey]
+	private static readonly ModConfigurationKey<bool> HideVirtualKeyboardKey =
+		new ModConfigurationKey<bool>(
+			"HideVirtualKeyboard",
+			"Don't show the virtual keyboard (With cyberfinger, one should be using a real one!) .",
+			() => true // default value
+		);
+
+	// Helper so patch code can read the toggle safely
+	internal static bool HideVirtualKeyboard =>
+		_config?.GetValue(HideVirtualKeyboardKey) ?? true;
+
+
 	public override void OnEngineInit() {
 
 		_config = GetConfiguration();  // creates/loads config and UI
@@ -115,6 +130,16 @@ public class CyberFingerMod : ResoniteMod {
 
 	}
 
+	[HarmonyPatch(typeof(VirtualKeyboard), "IsShown", MethodType.Setter)]
+	static class VK_IsShown_Set_Patch {
+		// If you want a toggle, gate on your setting.
+		static bool Prefix(ref bool value) {
+			if (!HideVirtualKeyboard) return true; // allow normal behavior
+			value = false; // force-hide
+			return true;   // still run original setter (it will set ActiveSelf=false & null TargetText)
+		}
+	}
+
 
 	//Implement the HarmonyPatch
 	[HarmonyPatch(typeof(StandardGamepad), "Bind")]
@@ -122,9 +147,19 @@ public class CyberFingerMod : ResoniteMod {
 
 		static private ScreenLocomotionDirection GenerateScreenDirection(StandardGamepad __instance) {
 			ScreenLocomotionDirection screenLocomotionDirection = new ScreenLocomotionDirection();
-			screenLocomotionDirection.Axis = InputNode.Analog2D(__instance.LeftThumbstick);
-			screenLocomotionDirection.Up = InputNode.Digital(__instance.LeftThumbstickClick);
-			screenLocomotionDirection.Down = InputNode.Digital(__instance.RightThumbstickClick);
+
+			var rs = InputNode.Analog2D(__instance.RightThumbstick);
+			var ls = InputNode.Analog2D(__instance.LeftThumbstick);
+
+			// 3) Sum: right + (-left)
+			var ySum = new SumInputs<float>();
+			ySum.Inputs.Add(rs.Y());
+			ySum.Inputs.Add(ls.Y());
+
+			screenLocomotionDirection.Axis = InputNode.XY(ls.X(), ySum);
+
+			screenLocomotionDirection.Up = InputNode.Digital(__instance.RightThumbstickClick);
+			screenLocomotionDirection.Down = InputNode.Digital(__instance.LeftThumbstickClick);
 			return screenLocomotionDirection;
 		}
 
@@ -222,7 +257,7 @@ public class CyberFingerMod : ResoniteMod {
 			
 			if (group is SmoothThreeAxisLocomotionInputs threeAxisLocomotion) {
 				threeAxisLocomotion.Move.AddBinding(GenerateScreenDirection(__instance), __instance);
-				threeAxisLocomotion.Jump.AddBinding(__instance.LeftThumbstickClick);
+				threeAxisLocomotion.Jump.AddBinding(__instance.RightThumbstickClick);
 				threeAxisLocomotion.Align.AddBinding(__instance.B);
 				threeAxisLocomotion.Align.AddBinding(__instance.Y);
 
@@ -311,13 +346,13 @@ public class CyberFingerMod : ResoniteMod {
 
 
 			if (group is HeadInputs headInputs) {
-				headInputs.Crouch.AddBinding(InputNode.Digital(__instance.RightThumbstickClick).ToAnalog(), __instance);
-				headInputs.Crouch.AddBinding(InputNode.Digital(__instance.RightThumbstickClick).MultiTapToggle().ToAnalog(), __instance);
+				headInputs.Crouch.AddBinding(InputNode.Digital(__instance.LeftThumbstickClick).ToAnalog(), __instance);
+				headInputs.Crouch.AddBinding(InputNode.Digital(__instance.LeftThumbstickClick).MultiTapToggle().ToAnalog(), __instance);
 			}
 
 			if (group is SmoothLocomotionInputs smoothLocomotion) {
 				smoothLocomotion.Move.AddBinding(GenerateScreenDirection(__instance), __instance);
-				smoothLocomotion.Jump.AddBinding(__instance.LeftThumbstickClick);
+				smoothLocomotion.Jump.AddBinding(__instance.RightThumbstickClick);
 				smoothLocomotion.TurnDelta.AddBinding(GenerateTurn(__instance), __instance);
 			}
 
