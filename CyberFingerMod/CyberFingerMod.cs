@@ -1,12 +1,14 @@
 using System;
 using System.Collections;          // <-- this gives you IList
 using System.Collections.Generic;
+using System.Linq;
 using System.Reflection;
 
 using Elements.Core;
 
 using FrooxEngine;
 using FrooxEngine.CommonAvatar;
+using FrooxEngine.FinalIK;
 
 using HarmonyLib;
 
@@ -140,6 +142,156 @@ public class CyberFingerMod : ResoniteMod {
 		}
 	}
 
+	// x > t  -> (x - t).ToDigital(activation:0)   (true if positive)
+	static IInputNode<bool> GreaterThan(IInputNode<float> x, float t) {
+		var s = new SumInputs<float>();
+		s.Inputs.Add(x);
+		s.Inputs.Add(InputNode.Constant(-t)); // x - t
+		return s.ToDigital(0f, 0f);
+	}
+
+	// x < t  -> (t - x).ToDigital(activation:0)
+	static IInputNode<bool> LessThan(IInputNode<float> x, float t) {
+		var s = new SumInputs<float>();
+		s.Inputs.Add(InputNode.Constant(t));  // t - x
+		s.Inputs.Add(x.Negate());
+		return s.ToDigital(0f, 0f);
+	}
+
+	// Clamp a float node to [0,1] using the conditional
+	static IInputNode<float> Clamp01F(IInputNode<float> x) {
+		var gt1 = GreaterThan(x, 1f);   // x > 1
+		var lt0 = LessThan(x, 0f);      // x < 0
+
+		// First clamp top: hi = gt1 ? 1 : x
+		var hi = InputNode.Conditional(InputNode.Constant(1f), x, gt1);
+
+		// Then clamp bottom: res = lt0 ? 0 : hi
+		return InputNode.Conditional(InputNode.Constant(0f), hi, lt0);
+	}
+
+	// Per-component clamp for float2 using X()/Y() and XY(...)
+	static IInputNode<float2> Clamp01F2(IInputNode<float2> v) {
+		var cx = Clamp01F(v.X());
+		var cy = Clamp01F(v.Y());
+		return InputNode.XY(cx, cy);
+	}
+
+	// Bool OR: using Any(...)
+	static IInputNode<bool> OrBool(IInputNode<bool> a, IInputNode<bool> b) {
+		if (a == null) return b;
+		if (b == null) return a;
+		return InputNode.Any(a, b);
+	}
+
+	// Clamped sums (combine first, then clamp)
+	static IInputNode<float> SumClamped01(IInputNode<float> a, IInputNode<float> b) {
+		if (a == null) return b;
+		if (b == null) return a;
+		var s = new SumInputs<float>(); s.Inputs.Add(a); s.Inputs.Add(b);
+		return Clamp01F(s);
+	}
+
+	static IInputNode<float2> SumClamped01(IInputNode<float2> a, IInputNode<float2> b) {
+		if (a == null) return b;
+		if (b == null) return a;
+		var s = new SumInputs<float2>(); s.Inputs.Add(a); s.Inputs.Add(b);
+		return Clamp01F2(s);
+	}
+
+	//Implement the HarmonyPatch
+	//Fix RawDataTool so it will also get StandardGamepad input (merge with any vr controller)
+	[HarmonyPatch(typeof(RawDataTool), "UpdateSourceController")]
+	public static class RawDataTool_UpdateSourceController_Patch {
+
+		static bool Prefix(RawDataTool __instance) {
+			IStandardController controller = null;
+			var _ah = ((Tool)__instance).ActiveHandler;
+			var _world = ((Worker)__instance).World;
+			var _inputInterface = ((Worker)__instance).InputInterface;
+			var gmField = AccessTools.Field(typeof(InputInterface), "_gamepadManager");
+			var gm = (GamepadManager)gmField.GetValue(_inputInterface);
+			var dictField = AccessTools.Field(typeof(GamepadManager), "_gamepads");
+			var dict = (Dictionary<string, StandardGamepad>)dictField.GetValue(gm);
+			var gamepad = (StandardGamepad)dict?.Values.FirstOrDefault();
+
+			if (_ah != null) {
+				controller = ((Worker)__instance).InputInterface.GetControllerNode(_ah.Side);
+			}
+
+			// __instance._sourceController 
+			var scField = AccessTools.Field(typeof(RawDataTool), "_sourceController");
+			var sc = (IStandardController)scField.GetValue(__instance);
+
+			var PrimaryStrengthRef = AccessTools.FieldRefAccess<RawDataTool, SyncRef<ValueStream<float>>>("_primaryStrengthStream");
+			var SecondaryAxisRef = AccessTools.FieldRefAccess<RawDataTool, SyncRef<ValueStream<float2>>>("_secondaryAxisStream");
+			var PrimaryRef = AccessTools.FieldRefAccess<RawDataTool, SyncRef<ValueStream<bool>>>("_primaryStream");
+			var SecondaryRef = AccessTools.FieldRefAccess<RawDataTool, SyncRef<ValueStream<bool>>>("_secondaryStream");
+
+			if (sc != controller) {
+				__instance.ControllerType.Value = controller?.GetType();
+				Sync<Chirality> controllerSide = __instance.ControllerSide;
+				Sync<Chirality> sync = _ah?.Side;
+				controllerSide.Value = ((sync != null) ? ((Chirality)sync) : ((Chirality)(-1)));
+				var side = _ah?.Side ?? Chirality.Left;
+
+				Analog2D Axis = null;
+				Digital Primary = null;
+				Analog PrimaryStrength = null; // use trigger if you want analog strength
+				Digital Secondary = null;
+
+				// give priority to gamepad
+				// TODO: ideally the streams of gamepad and VR could be merged
+				if (gamepad != null) {
+					if (side == Chirality.Left) {
+						Axis = gamepad.LeftThumbstick;
+						Primary = gamepad.A;                 // left primary = A (digital)
+						// TODO -> this shuold be Analog of A
+						PrimaryStrength = gamepad.LeftTrigger;                         // primaryStrength = A -> analog
+						Secondary = gamepad.LeftThumbstickClick;
+					} else // Chirality.Right
+					  {
+						Axis = gamepad.RightThumbstick;
+						Primary = gamepad.B;                 // right primary = B (digital)
+						// TODO -> this shuold be Analog of B
+						PrimaryStrength = gamepad.RightTrigger;                         // primaryStrength = B -> analog
+						Secondary = gamepad.RightThumbstickClick;
+					}
+				} else {
+
+					// VR controller nodes (may be null)
+					PrimaryStrength = controller?.Strength;
+					Axis = controller?.Axis;
+					Primary = controller?.ActionPrimary;
+					Secondary = controller?.ActionSecondary;
+
+					PrimaryStrengthRef(__instance).Target = PrimaryStrength?.GetStream(_world);
+					SecondaryAxisRef(__instance).Target = Axis?.GetStream(_world);
+					PrimaryRef(__instance).Target = Primary?.GetStream(_world);
+					SecondaryRef(__instance).Target = Secondary?.GetStream(_world);
+				}
+
+				/*
+				// Merge
+				var mergedStrength = SumClamped01(vrStrength, gpPrimaryStrength);
+				var mergedAxis = SumClamped01(vrAxis, gpAxis);
+				var mergedPrimary = OrBool(vrPrimary, gpPrimary);
+				var mergedSecondary = OrBool(vrSecondary, gpSecondary);
+
+				// Assign streams
+				PrimaryStrengthRef(__instance).Target = mergedStrength?.GetStream(_world);
+				SecondaryAxisRef(__instance).Target = mergedAxis?.GetStream(_world);
+				PrimaryRef(__instance).Target = mergedPrimary?.GetStream(_world);
+				SecondaryRef(__instance).Target = mergedSecondary?.GetStream(_world);
+				*/
+
+				scField.SetValue(__instance, controller);
+			}
+
+
+			return false;
+		}
+	}
 
 	//Implement the HarmonyPatch
 	[HarmonyPatch(typeof(StandardGamepad), "Bind")]
@@ -257,9 +409,9 @@ public class CyberFingerMod : ResoniteMod {
 			
 			if (group is SmoothThreeAxisLocomotionInputs threeAxisLocomotion) {
 				threeAxisLocomotion.Move.AddBinding(GenerateScreenDirection(__instance), __instance);
-				threeAxisLocomotion.Jump.AddBinding(__instance.RightThumbstickClick);
-				threeAxisLocomotion.Align.AddBinding(__instance.B);
-				threeAxisLocomotion.Align.AddBinding(__instance.Y);
+				threeAxisLocomotion.Jump.AddBinding(InputNode.Digital(__instance.RightThumbstickClick), __instance);
+				threeAxisLocomotion.Align.AddBinding(InputNode.Digital(__instance.B), __instance);
+				threeAxisLocomotion.Align.AddBinding(InputNode.Digital(__instance.Y), __instance);
 
 				var rs = InputNode.Analog2D(__instance.RightThumbstick);
 				var pitch = rs.Y().Negate();  // invert so up = pitch up
@@ -282,29 +434,29 @@ public class CyberFingerMod : ResoniteMod {
 
 			if (group is AnchorLocomotionInputs anchorInputs) {
 
-				anchorInputs.PrimaryAxis.AddBinding(__instance.LeftThumbstick);
-				anchorInputs.SecondaryAxis.AddBinding(__instance.RightThumbstick);
-				anchorInputs.PrimaryAction.AddBinding(__instance.LeftThumbstickClick);
-				anchorInputs.SecondaryAction.AddBinding(__instance.RightThumbstickClick);
+				anchorInputs.PrimaryAxis.AddBinding(InputNode.Analog2D(__instance.LeftThumbstick), __instance);
+				anchorInputs.SecondaryAxis.AddBinding(InputNode.Analog2D(__instance.RightThumbstick), __instance);
+				anchorInputs.PrimaryAction.AddBinding(InputNode.Digital(__instance.LeftThumbstickClick), __instance);
+				anchorInputs.SecondaryAction.AddBinding(InputNode.Digital(__instance.RightThumbstickClick), __instance);
 			}
 
 			if (group is AnchorReleaseInputs anchorRelease) {
-				anchorRelease.Release.AddBinding(__instance.A);
-				anchorRelease.Release.AddBinding(__instance.X);
+				anchorRelease.Release.AddBinding(InputNode.Digital(__instance.A), __instance);
+				anchorRelease.Release.AddBinding(InputNode.Digital(__instance.X), __instance);
 				anchorRelease.ReleaseStrength.AddBinding(InputNode.Analog2D(__instance.LeftThumbstick).Magnitude(), __instance);
 				anchorRelease.ReleaseStrength.AddBinding(InputNode.Analog2D(__instance.RightThumbstick).Magnitude(), __instance);
 			}
 
 			if (group is TeleportInputs teleport) {
 				if (teleport.Side == Chirality.Left) {
-					teleport.Teleport.AddBinding(__instance.LeftThumbstickClick);
+					teleport.Teleport.AddBinding(InputNode.Digital(__instance.LeftThumbstickClick), __instance);
 					teleport.Backstep.AddBinding(InputNode.Analog2D(__instance.LeftThumbstick).Y().Negate()
 						.ToDigital(0.8f), __instance);
 					teleport.TurnDelta.AddBinding(GenerateTurnLeft(__instance), __instance);
 				}
 
 				if (teleport.Side == Chirality.Right) {
-					teleport.Teleport.AddBinding(__instance.RightThumbstickClick);
+					teleport.Teleport.AddBinding(InputNode.Digital(__instance.RightThumbstickClick), __instance);
 					teleport.Backstep.AddBinding(InputNode.Analog2D(__instance.RightThumbstick).Y().Negate()
 						.ToDigital(0.8f), __instance);
 					teleport.TurnDelta.AddBinding(GenerateTurn(__instance), __instance);
@@ -316,16 +468,20 @@ public class CyberFingerMod : ResoniteMod {
 
 				if (devTool.Side == Chirality.Left) {
 					Msg("Added Left DevToolInputs");
-					devTool.Focus.AddBinding(__instance.LeftThumbstickClick);
-					devTool.Inspector.AddBinding(__instance.X);
-					devTool.Create.AddBinding(__instance.Y);
+					devTool.Focus.AddBinding(InputNode.Digital(__instance.LeftThumbstickClick), __instance, null, 20000);
+					devTool.Inspector.AddBinding(InputNode.Digital(__instance.X), __instance, null, 20000);
+					devTool.Create.AddBinding(InputNode.Digital(__instance.Y), __instance, null, 20000);
+					//devTool.Create.AddBinding(InputNode.Digital(__instance.Menu), __instance, null, -100);
+					//commonTool.Secondary.AddBinding(InputNode.Digital(__instance.Menu), __instance);
 				}
 
 				if (devTool.Side == Chirality.Right) {
 					Msg("Added Right DevToolInputs");
-					devTool.Focus.AddBinding(InputNode.Digital(__instance.RightThumbstickClick), __instance);
-					devTool.Inspector.AddBinding(InputNode.Digital(__instance.A), __instance);
-					devTool.Create.AddBinding(InputNode.Digital(__instance.B), __instance);
+					devTool.Focus.AddBinding(InputNode.Digital(__instance.RightThumbstickClick), __instance, null, 20000);
+					devTool.Inspector.AddBinding(InputNode.Digital(__instance.A), __instance, null, 20000);
+					devTool.Create.AddBinding(InputNode.Digital(__instance.B), __instance, null, 20000);
+					//devTool.Create.AddBinding(InputNode.Digital(__instance.Menu), __instance, null, -100);
+
 				}
 
 			}
@@ -352,7 +508,8 @@ public class CyberFingerMod : ResoniteMod {
 
 			if (group is SmoothLocomotionInputs smoothLocomotion) {
 				smoothLocomotion.Move.AddBinding(GenerateScreenDirection(__instance), __instance);
-				smoothLocomotion.Jump.AddBinding(__instance.RightThumbstickClick);
+				smoothLocomotion.Jump.AddBinding(InputNode.Digital(__instance.RightThumbstickClick), __instance);
+				smoothLocomotion.Jump.AddBinding(InputNode.Digital(__instance.LeftThumbstickClick), __instance);
 				smoothLocomotion.TurnDelta.AddBinding(GenerateTurn(__instance), __instance);
 			}
 
@@ -362,11 +519,12 @@ public class CyberFingerMod : ResoniteMod {
 					Msg("Added Left InteractionHandlerInputs");
 					//commonTool.Interact.AddBinding(InputNode.Digital(Chirality.Right, __instance.A.Name), __instance);
 					//commonTool.Interact.AddBinding(InputNode.Digital(Chirality.Left, __instance.X.Name), __instance);
-					commonTool.Interact.AddBinding(__instance.X);
+					commonTool.Strength.AddBinding(InputNode.Digital(__instance.X).ToAnalog(), __instance);
+					commonTool.Interact.AddBinding(InputNode.Digital(__instance.X), __instance);
 					commonTool.Grab.AddBinding(InputNode.Digital(__instance.Y), __instance);
 					commonTool.Grab.AddBinding(InputNode.Digital(__instance.Y).TapToggle(), __instance);
 					commonTool.Menu.AddBinding(InputNode.Digital(__instance.LeftBumper), __instance);
-					commonTool.Secondary.AddBinding(__instance.Menu);
+					commonTool.Secondary.AddBinding(InputNode.Digital(__instance.LeftThumbstickClick), __instance);
 				}
 
 				if (commonTool.Side == Chirality.Right) {
@@ -376,8 +534,10 @@ public class CyberFingerMod : ResoniteMod {
 					//commonTool.Grab.AddBinding(InputNode.Digital(Chirality.Left, __instance.Y.Name), __instance);
 					commonTool.Grab.AddBinding(InputNode.Digital(__instance.B), __instance);
 					commonTool.Grab.AddBinding(InputNode.Digital(__instance.B).TapToggle(), __instance);
-					commonTool.Interact.AddBinding(__instance.A);
+					commonTool.Interact.AddBinding(InputNode.Digital(__instance.A), __instance);
+					commonTool.Strength.AddBinding(InputNode.Digital(__instance.A).ToAnalog(), __instance);
 					commonTool.Menu.AddBinding(InputNode.Digital(__instance.RightBumper), __instance);
+					commonTool.Secondary.AddBinding(InputNode.Digital(__instance.RightThumbstickClick), __instance);
 				}
 
 			}
