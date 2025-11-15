@@ -548,6 +548,7 @@ public class CyberFingerMod : ResoniteMod {
 				//globalActions.ToggleDash.AddBinding(__instance.Start); //right
 
 				globalActions.ToggleDash.AddBinding(InputNode.Digital(__instance.Start), __instance);
+				globalActions.ToggleDash.AddBinding(InputNode.Digital(__instance.Menu), __instance);
 
 				/* TODO EM Would be great if I could figure out a "double click Y,B to open dash" ... but 
 				 * the obvious isn't working ...
@@ -555,7 +556,7 @@ public class CyberFingerMod : ResoniteMod {
 				mtt.Sources.Add(InputNode.Digital(__instance.Y));
 				globalActions.ToggleDash.AddBinding(mtt, __instance);
 				*/
-									
+
 			}
 
 			// Don't let the original method run. 
