@@ -3,19 +3,13 @@ using System.Collections;          // <-- this gives you IList
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
-
 using Elements.Core;
-
 using FrooxEngine;
 using FrooxEngine.CommonAvatar;
 using FrooxEngine.FinalIK;
-
 using HarmonyLib;
-
 using Renderite.Shared;
-
 using ResoniteModLoader;
-
 using static Elements.Core.Pool;
 
 namespace CyberFingerMod;
@@ -132,6 +126,146 @@ public class CyberFingerMod : ResoniteMod {
 
 	}
 
+	// Implement support for gamepad inputs as emulated controllers in RawDataTool
+	[HarmonyPatch(typeof(RawDataTool), "UpdateValues")]
+	public static class RawDataTool_UpdateValues_Patch {
+		// --- private fields we need to read ---
+		static readonly AccessTools.FieldRef<RawDataTool, SyncRef<ValueStream<float>>> PrimaryStrengthStreamRef =
+			AccessTools.FieldRefAccess<RawDataTool, SyncRef<ValueStream<float>>>("_primaryStrengthStream");
+		static readonly AccessTools.FieldRef<RawDataTool, SyncRef<ValueStream<float2>>> SecondaryAxisStreamRef =
+			AccessTools.FieldRefAccess<RawDataTool, SyncRef<ValueStream<float2>>>("_secondaryAxisStream");
+		static readonly AccessTools.FieldRef<RawDataTool, SyncRef<ValueStream<bool>>> PrimaryStreamRef =
+			AccessTools.FieldRefAccess<RawDataTool, SyncRef<ValueStream<bool>>>("_primaryStream");
+		static readonly AccessTools.FieldRef<RawDataTool, SyncRef<ValueStream<bool>>> SecondaryStreamRef =
+			AccessTools.FieldRefAccess<RawDataTool, SyncRef<ValueStream<bool>>>("_secondaryStream");
+
+		static readonly AccessTools.FieldRef<RawDataTool, Sync<float>> RawStrengthRef =
+			AccessTools.FieldRefAccess<RawDataTool, Sync<float>>("_rawStrength");
+		static readonly AccessTools.FieldRef<RawDataTool, Sync<float2>> RawAxisRef =
+			AccessTools.FieldRefAccess<RawDataTool, Sync<float2>>("_rawAxis");
+		static readonly AccessTools.FieldRef<RawDataTool, Sync<bool>> RawPrimaryRef =
+			AccessTools.FieldRefAccess<RawDataTool, Sync<bool>>("_rawPrimary");
+		static readonly AccessTools.FieldRef<RawDataTool, Sync<bool>> RawSecondaryRef =
+			AccessTools.FieldRefAccess<RawDataTool, Sync<bool>>("_rawSecondary");
+
+		// gamepad manager internals
+		static readonly System.Reflection.FieldInfo GMField =
+			AccessTools.Field(typeof(InputInterface), "_gamepadManager");
+		static readonly System.Reflection.FieldInfo GamepadsField =
+			AccessTools.Field(typeof(GamepadManager), "_gamepads");
+
+		static bool Prefix(RawDataTool __instance) {
+			var worker = (Worker)__instance;
+			var world = worker.World;
+			var ah = ((Tool)__instance).ActiveHandler;
+
+			bool primaryBlocked = ah?.BlockPrimary ?? false;
+			bool secondaryBlocked = ah?.BlockSecondary ?? false;
+
+			// --- 1) Controller contribution (exactly like original, but via FieldRefs) ---
+			var strengthStream = PrimaryStrengthStreamRef(__instance).Target;
+			var axisStream = SecondaryAxisStreamRef(__instance).Target;
+			var primaryStream = PrimaryStreamRef(__instance).Target;
+			var secondaryStream = SecondaryStreamRef(__instance).Target;
+
+			float ctrlStrength = strengthStream != null ? strengthStream.Value : RawStrengthRef(__instance).Value;
+			float2 ctrlAxis = axisStream != null ? axisStream.Value : RawAxisRef(__instance).Value;
+			bool ctrlPrimary = primaryStream != null ? primaryStream.Value : RawPrimaryRef(__instance).Value;
+			bool ctrlSecondary = secondaryStream != null ? secondaryStream.Value : RawSecondaryRef(__instance).Value;
+
+			// --- 2) Gamepad contribution (StandardGamepad) ---
+			float gpStrength = 0f;
+			float2 gpAxis = float2.Zero;
+			bool gpPrimary = false;
+			bool gpSecondary = false;
+
+			var inputInterface = worker.InputInterface;
+			var gm = (GamepadManager)GMField.GetValue(inputInterface);
+			var dict = gm != null
+				? (Dictionary<string, StandardGamepad>)GamepadsField.GetValue(gm)
+				: null;
+			var gamepad = dict?.Values.FirstOrDefault();
+
+			if (gamepad != null && (__instance.Equipped?.Value ?? false)) {
+				//primaryBlocked = false; 
+				//secondaryBlocked = false;
+				var side = ah?.Side ?? Chirality.Left;
+
+				Analog2D axisProp;
+				Digital primaryProp;
+				Digital secondaryProp;
+
+				if (side == Chirality.Left) {
+					axisProp = gamepad.LeftThumbstick;
+					primaryProp = gamepad.A;                   // left primary = A
+					secondaryProp = gamepad.LeftThumbstickClick;
+				} else {
+					axisProp = gamepad.RightThumbstick;
+					primaryProp = gamepad.X;                   // right primary = B
+					secondaryProp = gamepad.RightThumbstickClick;
+				}
+
+				// sample device streams on-the-fly (GetStream is cheap + cached in engine)
+				var gpAxisStream = axisProp.GetStream(world);   // ValueStream<float2>
+				var gpPrimaryStream = primaryProp.GetStream(world);   // ValueStream<bool>
+				var gpSecondaryStream = secondaryProp.GetStream(world);  // ValueStream<bool>
+
+				if (gpAxisStream != null) gpAxis = gpAxisStream.Value;
+				if (gpPrimaryStream != null) gpPrimary = gpPrimaryStream.Value;
+				if (gpSecondaryStream != null) gpSecondary = gpSecondaryStream.Value;
+
+				// primary strength from primary button as 0/1
+				gpStrength = gpPrimary ? 1f : 0f;
+			}
+
+			// --- 3) Merge controller + gamepad in *value space* ---
+
+			// strength: sum then clamp to [0,1]
+			//float mergedStrength = primaryBlocked ? 0f : Clamp01(ctrlStrength + gpStrength);
+			float mergedStrength = gpStrength;
+
+			// axis: sum then clamp per component to [-1,1] (sticks are typically -1..1)
+			float2 mergedAxis = secondaryBlocked
+				? float2.Zero
+				: ClampAxis(ctrlAxis + gpAxis);
+
+			//bool mergedPrimary = !primaryBlocked && (ctrlPrimary || gpPrimary);
+			bool mergedSecondary = !secondaryBlocked && (ctrlSecondary || gpSecondary);
+			bool mergedPrimary = gpPrimary;
+
+			// --- 4) Write results into public RawOutputs ---
+			__instance.PrimaryStrength.Value = mergedStrength;
+			__instance.SecondaryAxis.Value = mergedAxis;
+			__instance.Primary.Value = mergedPrimary;
+			__instance.Secondary.Value = mergedSecondary;
+
+			// skip original UpdateValues (we fully replaced it)
+			return false;
+		}
+
+		static float Clamp01(float x) {
+			if (x < 0f) return 0f;
+			if (x > 1f) return 1f;
+			return x;
+		}
+
+		static float2 ClampAxis(float2 v) {
+			float lenSq = v.x * v.x + v.y * v.y;
+			if (lenSq > 1f) {
+				float inv = 1f / (float)Math.Sqrt(lenSq);
+				return new float2(v.x * inv, v.y * inv);
+			}
+			return v;
+		}
+
+		static float ClampMinus1To1(float x) {
+			if (x < -1f) return -1f;
+			if (x > 1f) return 1f;
+			return x;
+		}
+	}
+
+
 	[HarmonyPatch(typeof(VirtualKeyboard), "IsShown", MethodType.Setter)]
 	static class VK_IsShown_Set_Patch {
 		// If you want a toggle, gate on your setting.
@@ -142,156 +276,6 @@ public class CyberFingerMod : ResoniteMod {
 		}
 	}
 
-	// x > t  -> (x - t).ToDigital(activation:0)   (true if positive)
-	static IInputNode<bool> GreaterThan(IInputNode<float> x, float t) {
-		var s = new SumInputs<float>();
-		s.Inputs.Add(x);
-		s.Inputs.Add(InputNode.Constant(-t)); // x - t
-		return s.ToDigital(0f, 0f);
-	}
-
-	// x < t  -> (t - x).ToDigital(activation:0)
-	static IInputNode<bool> LessThan(IInputNode<float> x, float t) {
-		var s = new SumInputs<float>();
-		s.Inputs.Add(InputNode.Constant(t));  // t - x
-		s.Inputs.Add(x.Negate());
-		return s.ToDigital(0f, 0f);
-	}
-
-	// Clamp a float node to [0,1] using the conditional
-	static IInputNode<float> Clamp01F(IInputNode<float> x) {
-		var gt1 = GreaterThan(x, 1f);   // x > 1
-		var lt0 = LessThan(x, 0f);      // x < 0
-
-		// First clamp top: hi = gt1 ? 1 : x
-		var hi = InputNode.Conditional(InputNode.Constant(1f), x, gt1);
-
-		// Then clamp bottom: res = lt0 ? 0 : hi
-		return InputNode.Conditional(InputNode.Constant(0f), hi, lt0);
-	}
-
-	// Per-component clamp for float2 using X()/Y() and XY(...)
-	static IInputNode<float2> Clamp01F2(IInputNode<float2> v) {
-		var cx = Clamp01F(v.X());
-		var cy = Clamp01F(v.Y());
-		return InputNode.XY(cx, cy);
-	}
-
-	// Bool OR: using Any(...)
-	static IInputNode<bool> OrBool(IInputNode<bool> a, IInputNode<bool> b) {
-		if (a == null) return b;
-		if (b == null) return a;
-		return InputNode.Any(a, b);
-	}
-
-	// Clamped sums (combine first, then clamp)
-	static IInputNode<float> SumClamped01(IInputNode<float> a, IInputNode<float> b) {
-		if (a == null) return b;
-		if (b == null) return a;
-		var s = new SumInputs<float>(); s.Inputs.Add(a); s.Inputs.Add(b);
-		return Clamp01F(s);
-	}
-
-	static IInputNode<float2> SumClamped01(IInputNode<float2> a, IInputNode<float2> b) {
-		if (a == null) return b;
-		if (b == null) return a;
-		var s = new SumInputs<float2>(); s.Inputs.Add(a); s.Inputs.Add(b);
-		return Clamp01F2(s);
-	}
-
-	//Implement the HarmonyPatch
-	//Fix RawDataTool so it will also get StandardGamepad input (merge with any vr controller)
-	[HarmonyPatch(typeof(RawDataTool), "UpdateSourceController")]
-	public static class RawDataTool_UpdateSourceController_Patch {
-
-		static bool Prefix(RawDataTool __instance) {
-			IStandardController controller = null;
-			var _ah = ((Tool)__instance).ActiveHandler;
-			var _world = ((Worker)__instance).World;
-			var _inputInterface = ((Worker)__instance).InputInterface;
-			var gmField = AccessTools.Field(typeof(InputInterface), "_gamepadManager");
-			var gm = (GamepadManager)gmField.GetValue(_inputInterface);
-			var dictField = AccessTools.Field(typeof(GamepadManager), "_gamepads");
-			var dict = (Dictionary<string, StandardGamepad>)dictField.GetValue(gm);
-			var gamepad = (StandardGamepad)dict?.Values.FirstOrDefault();
-
-			if (_ah != null) {
-				controller = ((Worker)__instance).InputInterface.GetControllerNode(_ah.Side);
-			}
-
-			// __instance._sourceController 
-			var scField = AccessTools.Field(typeof(RawDataTool), "_sourceController");
-			var sc = (IStandardController)scField.GetValue(__instance);
-
-			var PrimaryStrengthRef = AccessTools.FieldRefAccess<RawDataTool, SyncRef<ValueStream<float>>>("_primaryStrengthStream");
-			var SecondaryAxisRef = AccessTools.FieldRefAccess<RawDataTool, SyncRef<ValueStream<float2>>>("_secondaryAxisStream");
-			var PrimaryRef = AccessTools.FieldRefAccess<RawDataTool, SyncRef<ValueStream<bool>>>("_primaryStream");
-			var SecondaryRef = AccessTools.FieldRefAccess<RawDataTool, SyncRef<ValueStream<bool>>>("_secondaryStream");
-
-			if (sc != controller) {
-				__instance.ControllerType.Value = controller?.GetType();
-				Sync<Chirality> controllerSide = __instance.ControllerSide;
-				Sync<Chirality> sync = _ah?.Side;
-				controllerSide.Value = ((sync != null) ? ((Chirality)sync) : ((Chirality)(-1)));
-				var side = _ah?.Side ?? Chirality.Left;
-
-				Analog2D Axis = null;
-				Digital Primary = null;
-				Analog PrimaryStrength = null; // use trigger if you want analog strength
-				Digital Secondary = null;
-
-				// give priority to gamepad
-				// TODO: ideally the streams of gamepad and VR could be merged
-				if (gamepad != null) {
-					if (side == Chirality.Left) {
-						Axis = gamepad.LeftThumbstick;
-						Primary = gamepad.A;                 // left primary = A (digital)
-						// TODO -> this shuold be Analog of A
-						PrimaryStrength = gamepad.LeftTrigger;                         // primaryStrength = A -> analog
-						Secondary = gamepad.LeftThumbstickClick;
-					} else // Chirality.Right
-					  {
-						Axis = gamepad.RightThumbstick;
-						Primary = gamepad.B;                 // right primary = B (digital)
-						// TODO -> this shuold be Analog of B
-						PrimaryStrength = gamepad.RightTrigger;                         // primaryStrength = B -> analog
-						Secondary = gamepad.RightThumbstickClick;
-					}
-				} else {
-
-					// VR controller nodes (may be null)
-					PrimaryStrength = controller?.Strength;
-					Axis = controller?.Axis;
-					Primary = controller?.ActionPrimary;
-					Secondary = controller?.ActionSecondary;
-
-					PrimaryStrengthRef(__instance).Target = PrimaryStrength?.GetStream(_world);
-					SecondaryAxisRef(__instance).Target = Axis?.GetStream(_world);
-					PrimaryRef(__instance).Target = Primary?.GetStream(_world);
-					SecondaryRef(__instance).Target = Secondary?.GetStream(_world);
-				}
-
-				/*
-				// Merge
-				var mergedStrength = SumClamped01(vrStrength, gpPrimaryStrength);
-				var mergedAxis = SumClamped01(vrAxis, gpAxis);
-				var mergedPrimary = OrBool(vrPrimary, gpPrimary);
-				var mergedSecondary = OrBool(vrSecondary, gpSecondary);
-
-				// Assign streams
-				PrimaryStrengthRef(__instance).Target = mergedStrength?.GetStream(_world);
-				SecondaryAxisRef(__instance).Target = mergedAxis?.GetStream(_world);
-				PrimaryRef(__instance).Target = mergedPrimary?.GetStream(_world);
-				SecondaryRef(__instance).Target = mergedSecondary?.GetStream(_world);
-				*/
-
-				scField.SetValue(__instance, controller);
-			}
-
-
-			return false;
-		}
-	}
 
 	//Implement the HarmonyPatch
 	[HarmonyPatch(typeof(StandardGamepad), "Bind")]
