@@ -3,13 +3,13 @@ Unless explicitly noted otherwise, all code in this repository, past and present
 CyberFingerMod — License Notice
 -------------------------------
 
-Copyright (C) 2025
-SciCortex Technologies Corp.
+Derived from the template https://github.com/resonite-modding-group/ExampleMod Copyright (C) 2025 XDelta
+All additions Copyright (C) 2025 DrSciCortex.
 
 This project is licensed under the **GNU Lesser General Public License
 version 3.0 (LGPL-3.0)**.
 
-Portions of this project incorporate or were derived from code originally
+Portions of this project incorporate or were derived from https://github.com/resonite-modding-group/ExampleMod originally
 provided under the MIT-0 license. MIT-0 is a highly permissive license that
 permits reuse, modification, and relicensing; these portions are therefore
 legally compatible with and incorporated into the overall LGPL-3.0 licensing

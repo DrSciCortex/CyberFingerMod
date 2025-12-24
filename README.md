@@ -16,7 +16,7 @@ Install Resolute Mod manager (https://github.com/Gawdl3y/resolute), and enable C
 
 1. Pair CyberFinger with PC over bluetooth
 1. For Meta Quest devices, SteamLink over Virtual Desktop is recommended, due to handtracking limitations of the latter
-1. Remove all hand gestures for hand input controller in Steam
+1. Remove all hand gestures for hand input controller in SteamVR
 1. Disable steam input for the CyberFinger gamepad for resonite
 1. Load Resonite and enable "keep gamepad in focus"
 1. Use ResoniteModSettings to configure the CyberFingerMod in resonite
