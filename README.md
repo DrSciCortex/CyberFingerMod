@@ -14,7 +14,7 @@ Install Resolute Mod manager (https://github.com/Gawdl3y/resolute), and enable C
 
 ## Configuration
 
-1. Pair CyberFinger with PC over bluetooth
+1. Pair both left and right CyberFinger with PC over bluetooth (they will initially appear as "input" on first pairing)
 1. For Meta Quest devices, SteamLink over Virtual Desktop is recommended, due to handtracking limitations of the latter
 1. Disable auto switching between controller and hand-tracking in Quest OS settings (Manually select handtracking when using CyberFinger before launching SteamLink).
 1. Remove all hand gestures for hand input controller in SteamVR
