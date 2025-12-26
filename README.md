@@ -28,6 +28,8 @@ Install Resolute Mod manager (https://github.com/Gawdl3y/resolute), and enable C
 
 <img width="461" height="399" alt="rightfinger_module_buttons" src="https://github.com/user-attachments/assets/a2998312-5db2-436a-bd97-4ba38568185b" />
 
+Buttons can be reassigned by uploading a revised config .JSON using the quick_cfg.py provided by the CyberFinger firmware. 
+
 ## Recommendation: Install win-f resonite/desktop focus solution
 
 AutoHotKey v2 script for resonite is under ./AHKv2
