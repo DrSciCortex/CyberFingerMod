@@ -22,6 +22,11 @@ Install Resolute Mod manager (https://github.com/Gawdl3y/resolute), and enable C
 1. Load Resonite and enable "keep gamepad in focus"
 1. Use ResoniteModSettings to configure the CyberFingerMod in resonite
 
+## Default Controls Layout
+
+<img width="535" height="376" alt="wrist_module_buttons" src="https://github.com/user-attachments/assets/6cabc6d2-16d0-4a36-9d04-cb4e6534bbce" />
+
+
 ## Recommendation: Install win-f resonite/desktop focus solution
 
 AutoHotKey v2 script for resonite is under ./AHKv2
@@ -29,6 +34,13 @@ Refer to AutoHotKey v2 docs for how to install it and have it auto-launch.
 
 This script enables keyboard & mouse focus to be swapped between Resonite, and the window manager desktop by pressing win-f.
 This is very useful for interacting with you desktop using mouse and keyboard, something you will spontaneously be interested in doing now that you have CyberFingers!
+
+## Known Issues
+
+The following are know issues we are working on fixes for:
+1. Resonite RawDataTool support is incomplete, as they assume VR Controllers as datasources ... this affects objects that use them under the hood, like laser pointers.
+1. Laser noise - this can be addressed with some filtering to allow more accurate pointing
+1. Left controller is high latency (~1s) for the first 30s-1min of booting up... After this warm-up period, latency becomes very usable. This is likely an ESP-NOW config issue. 
 
 ## License 
 
