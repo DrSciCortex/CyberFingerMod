@@ -26,6 +26,7 @@ Install Resolute Mod manager (https://github.com/Gawdl3y/resolute), and enable C
 
 <img width="535" height="376" alt="wrist_module_buttons" src="https://github.com/user-attachments/assets/6cabc6d2-16d0-4a36-9d04-cb4e6534bbce" />
 
+<img width="461" height="399" alt="rightfinger_module_buttons" src="https://github.com/user-attachments/assets/a2998312-5db2-436a-bd97-4ba38568185b" />
 
 ## Recommendation: Install win-f resonite/desktop focus solution
 
