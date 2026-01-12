@@ -21,6 +21,7 @@ Install Resolute Mod manager (https://github.com/Gawdl3y/resolute), and enable C
 1. Disable steam input for the CyberFinger gamepad for resonite
 1. Load Resonite and enable "keep gamepad in focus"
 1. Use ResoniteModSettings to configure the CyberFingerMod in resonite
+1. Edit your avatar to move your laser anchor to emanate from the palm of your hand, comfortably between your index finger and thumb.
 
 ## Default Controls Layout
 
