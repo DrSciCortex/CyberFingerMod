@@ -44,7 +44,9 @@ This is very useful for interacting with you desktop using mouse and keyboard, s
 The following are know issues we are working on fixes for:
 1. Resonite RawDataTool support is incomplete, as they assume VR Controllers as datasources ... this affects objects that use them under the hood, like laser pointers.
 1. Laser noise - this can be addressed with some filtering to allow more accurate pointing
-1. Left controller is high latency (~1s) for the first 30s-1min of booting up... After this warm-up period, latency becomes very usable. This is likely an ESP-NOW config issue. 
+1. Left controller is high latency (~1s) for the first 30s-1min of booting up... After this warm-up period, latency becomes very usable. This is likely an ESP-NOW config issue.
+1. One hint specific to the SciCortex official CYBRFNGR hardware: **We don't have much data yet how strong the plug linking the ring module to the wrist module and its soldier joints are**.  We have tried to stabilize it as much possible. **We suggest to avoid unplugging the plug**. Its not needed for normal use. If you do, do so gently, and only if the ring module needs to be replaced, or if needed for other troubleshooting or servicing. 
+
 
 ## License 
 
