@@ -15,28 +15,29 @@ Install Resolute Mod manager (https://github.com/Gawdl3y/resolute), and enable C
 ## Configuration
 
 1. **Pair**: Pair both left and right CyberFinger with PC over bluetooth (they will initially appear as "input" on first pairing)
-1. **Install** the latest version of the CyberFinger bridge/server.  The installer is available [here](https://github.com/DrSciCortex/CyberFinger_SteamVR/releases)
-1. **Launch server**: "CyberFinger Bridge" - Set the server to "gamepad mode", and press "start" button in the server.  Verify that your 2 CyberFingers are detected by the server (it takes about 5 seconds). A diagnostic GUI will appear for left and right controllers near the top of the bridge/server. Pressing joystick and buttons should produce events rendered by the diagnostic GUI. 
-1. **Turn on handtracking**: Disable auto switching between controller and hand-tracking in Quest OS settings (Manually select handtracking when using CyberFinger before launching SteamLink).
-1. **Connect your headset to PC with handtracking**: For Meta Quest devices, SteamLink over Virtual Desktop is recommended, due to handtracking limitations of the latter
-1. **Remove all hand gestures** for hand input controller in SteamVR (see video [here](https://www.youtube.com/watch?v=185BYNgHXvI) )
-1. **Disable steam input** for the CyberFinger gamepad for resonite, as it interferes with resonite setting "keep gamepad in focus".
-<img width="600" alt="image" src="https://github.com/user-attachments/assets/e0163fc6-6ca7-4851-9906-68e2267f8a59" />
+2. **Install** the latest version of the CyberFinger bridge/server.  The installer is available [here](https://github.com/DrSciCortex/CyberFinger_SteamVR/releases)
+3. **Launch server**: "CyberFinger Bridge" - Set the server to "gamepad mode", and press "start" button in the server.  Verify that your 2 CyberFingers are detected by the server (it takes about 5 seconds). A diagnostic GUI will appear for left and right controllers near the top of the bridge/server. Pressing joystick and buttons should produce events rendered by the diagnostic GUI. 
+4. **Turn on handtracking**: Disable auto switching between controller and hand-tracking in Quest OS settings (Manually select handtracking when using CyberFinger before launching SteamLink).
+5. **Connect your headset to PC with handtracking**: For Meta Quest devices, SteamLink over Virtual Desktop is recommended, due to handtracking limitations of the latter
+6. **Remove all hand gestures** for hand input controller in SteamVR (see video [here](https://www.youtube.com/watch?v=185BYNgHXvI) )
+7. **Disable steam input** for the CyberFinger gamepad for resonite, as it interferes with resonite setting "keep gamepad in focus".
+<p align="center"><img width="500" alt="image" src="https://github.com/user-attachments/assets/e0163fc6-6ca7-4851-9906-68e2267f8a59" /></p>
   
-1. **Keep gamepad in focus**: Load Resonite and enable "keep gamepad in focus" under settings. The allows you to interact with your desktop with mouse and keyboard while in VR, and the CyberFinger events will still go directly to Resonite.
-1. Use ResoniteModSettings to configure the CyberFingerMod in resonite. For example, in those settings you can disable the "virtual keyboard" popping up for text input.  When you've got CyberFingers, you can finally use your real keyboard again!!
-1. **Move your laser for handtracking**: If you like, edit your avatar to move your laser anchor to emanate from the palm of your hand, comfortably between your index finger and thumb.
-1. **Adjust laser filtering**: Resonite offers laser filtering settings.  You may want to adjust them along the lines shown here, and in particular play with "laser smooth speed"
-<img width="915" height="473" alt="image" src="https://github.com/user-attachments/assets/d733d496-a958-4437-9029-66b82dbefee2" />
-1. (Recommended) **Install win-f resonite/desktop focus solution** - see below.
+8. **Keep gamepad in focus**: Load Resonite and enable "keep gamepad in focus" under settings. The allows you to interact with your desktop with mouse and keyboard while in VR, and the CyberFinger events will still go directly to Resonite.
+9. Use ResoniteModSettings to configure the CyberFingerMod in resonite. For example, in those settings you can disable the "virtual keyboard" popping up for text input.  When you've got CyberFingers, you can finally use your real keyboard again!!
+10. **Move your laser for handtracking**: If you like, edit your avatar to move your laser anchor to emanate from the palm of your hand, comfortably between your index finger and thumb.
+11. **Adjust laser filtering**: Resonite offers laser filtering settings.  You may want to adjust them along the lines shown here, and in particular play with "laser smooth speed"
+<p align="center"><img width="500" alt="image" src="https://github.com/user-attachments/assets/d733d496-a958-4437-9029-66b82dbefee2" /></p>
+
+12. (Recommended) **Install win-f resonite/desktop focus solution** - see below.
  
 
 ## Default Controls Layout
-
-<img width="535" height="376" alt="wrist_module_buttons" src="https://github.com/user-attachments/assets/6cabc6d2-16d0-4a36-9d04-cb4e6534bbce" />
-
-<img width="461" height="399" alt="rightfinger_module_buttons" src="https://github.com/user-attachments/assets/a2998312-5db2-436a-bd97-4ba38568185b" />
-
+<p align="center">
+<img width="400" alt="wrist_module_buttons" src="https://github.com/user-attachments/assets/6cabc6d2-16d0-4a36-9d04-cb4e6534bbce" />
+</br>
+<img width="400" alt="rightfinger_module_buttons" src="https://github.com/user-attachments/assets/a2998312-5db2-436a-bd97-4ba38568185b" />
+</p>
 Buttons can be reassigned by uploading a revised config .JSON using the quick_cfg.py provided by the CyberFinger firmware. 
 
 ## Recommendation: Install win-f resonite/desktop focus solution
