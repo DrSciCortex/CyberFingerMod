@@ -20,12 +20,15 @@ Install Resolute Mod manager (https://github.com/Gawdl3y/resolute), and enable C
 1. **Turn on handtracking**: Disable auto switching between controller and hand-tracking in Quest OS settings (Manually select handtracking when using CyberFinger before launching SteamLink).
 1. **Connect your headset to PC with handtracking**: For Meta Quest devices, SteamLink over Virtual Desktop is recommended, due to handtracking limitations of the latter
 1. **Remove all hand gestures** for hand input controller in SteamVR (see video [here](https://www.youtube.com/watch?v=185BYNgHXvI) )
-1. Disable steam input for the CyberFinger gamepad for resonite, as it interferes with resonite setting "keep gamepad in focus".
-1. Load Resonite and enable "keep gamepad in focus" under settings.
-1. Use ResoniteModSettings to configure the CyberFingerMod in resonite
-1. If you like, edit your avatar to move your laser anchor to emanate from the palm of your hand, comfortably between your index finger and thumb.
+1. **Disable steam input** for the CyberFinger gamepad for resonite, as it interferes with resonite setting "keep gamepad in focus".
+<img width="1229" height="686" alt="image" src="https://github.com/user-attachments/assets/e0163fc6-6ca7-4851-9906-68e2267f8a59" />
+  
+1. **Keep gamepad in focus**: Load Resonite and enable "keep gamepad in focus" under settings. The allows you to interact with your desktop with mouse and keyboard while in VR, and the CyberFinger events will still go directly to Resonite.
+1. Use ResoniteModSettings to configure the CyberFingerMod in resonite. For example, in those settings you can disable the "virtual keyboard" popping up for text input.  When you've got CyberFingers, you can finally use your real keyboard again!!
+1. **Move your laser for handtracking**: If you like, edit your avatar to move your laser anchor to emanate from the palm of your hand, comfortably between your index finger and thumb.
 1. **Adjust laser filtering**: Resonite offers laser filtering settings.  You may want to adjust them along the lines shown here, and in particular play with "laser smooth speed"
 <img width="915" height="473" alt="image" src="https://github.com/user-attachments/assets/d733d496-a958-4437-9029-66b82dbefee2" />
+1. (Recommended) **Install win-f resonite/desktop focus solution** - see below.
  
 
 ## Default Controls Layout
@@ -38,20 +41,18 @@ Buttons can be reassigned by uploading a revised config .JSON using the quick_cf
 
 ## Recommendation: Install win-f resonite/desktop focus solution
 
-AutoHotKey v2 script for resonite is under ./AHKv2
-Refer to AutoHotKey v2 docs for how to install it and have it auto-launch. 
+We provide an AutoHotKey v2 script for resonite under ./AHKv2 (Refer to AutoHotKey v2 docs for how to install it and have it auto-launch). 
 
 This script enables keyboard & mouse focus to be swapped between Resonite, and the window manager desktop by pressing win-f.
-This is very useful for interacting with you desktop using mouse and keyboard, something you will spontaneously be interested in doing now that you have CyberFingers!
+This is very useful for interacting with you desktop using mouse and keyboard while in VR/Resonite, something you will spontaneously be interested in doing now that you have CyberFingers!
+**For a demo, checkout this video** [here](https://www.youtube.com/watch?v=dNAswHlMzls).
 
 ## Known Issues
 
 The following are know issues we are working on fixes for:
 1. Resonite RawDataTool support is incomplete, as they assume VR Controllers as datasources ... this affects objects that use them under the hood, like laser pointers.
-1. Laser noise - this can be addressed with some filtering to allow more accurate pointing
-1. Left controller is high latency (~1s) for the first 30s-1min of booting up... After this warm-up period, latency becomes very usable. This is likely an ESP-NOW config issue.
+1. Laser noise - this can be addressed with filtering adjustments to allow more accurate pointing (see above **Adjust laser filtering** under **Configuration** above).
 1. One hint specific to the SciCortex official CYBRFNGR hardware: **We don't have much data yet how strong the plug linking the ring module to the wrist module and its soldier joints are**.  We have tried to stabilize it as much possible. **We suggest to avoid unplugging the plug**. Its not needed for normal use. If you do, do so gently, and only if the ring module needs to be replaced, or if needed for other troubleshooting or servicing. 
-
 
 ## License 
 
