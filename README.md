@@ -14,14 +14,19 @@ Install Resolute Mod manager (https://github.com/Gawdl3y/resolute), and enable C
 
 ## Configuration
 
-1. Pair both left and right CyberFinger with PC over bluetooth (they will initially appear as "input" on first pairing)
-1. For Meta Quest devices, SteamLink over Virtual Desktop is recommended, due to handtracking limitations of the latter
-1. Disable auto switching between controller and hand-tracking in Quest OS settings (Manually select handtracking when using CyberFinger before launching SteamLink).
-1. Remove all hand gestures for hand input controller in SteamVR
-1. Disable steam input for the CyberFinger gamepad for resonite
-1. Load Resonite and enable "keep gamepad in focus"
+1. **Pair**: Pair both left and right CyberFinger with PC over bluetooth (they will initially appear as "input" on first pairing)
+1. **Install** the latest version of the CyberFinger bridge/server.  The installer is available [here](https://github.com/DrSciCortex/CyberFinger_SteamVR/releases)
+1. **Launch server**: Set the server to "gamepad mode", and press "start" button in the server.  Verify that your 2 CyberFingers are detected by the server (it takes about 5 seconds). A diagnostic GUI will appear for left and right controllers near the top of the bridge/server. Pressing joystick and buttons should produce events rendered by the diagnostic GUI. 
+1. **Turn on handtracking**: Disable auto switching between controller and hand-tracking in Quest OS settings (Manually select handtracking when using CyberFinger before launching SteamLink).
+1. **Connect your headset to PC with handtracking**: For Meta Quest devices, SteamLink over Virtual Desktop is recommended, due to handtracking limitations of the latter
+1. **Remove all hand gestures** for hand input controller in SteamVR (see video [here](https://www.youtube.com/watch?v=185BYNgHXvI) )
+1. Disable steam input for the CyberFinger gamepad for resonite, as it interferes with resonite setting "keep gamepad in focus".
+1. Load Resonite and enable "keep gamepad in focus" under settings.
 1. Use ResoniteModSettings to configure the CyberFingerMod in resonite
-1. Edit your avatar to move your laser anchor to emanate from the palm of your hand, comfortably between your index finger and thumb.
+1. If you like, edit your avatar to move your laser anchor to emanate from the palm of your hand, comfortably between your index finger and thumb.
+1. **Adjust laser filtering**: Resonite offers laser filtering settings.  You may want to adjust them along the lines shown here, and in particular play with "laser smooth speed"
+<img width="915" height="473" alt="image" src="https://github.com/user-attachments/assets/d733d496-a958-4437-9029-66b82dbefee2" />
+ 
 
 ## Default Controls Layout
 
