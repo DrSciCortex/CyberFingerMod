@@ -16,7 +16,7 @@ Install Resolute Mod manager (https://github.com/Gawdl3y/resolute), and enable C
 
 1. **Pair**: Pair both left and right CyberFinger with PC over bluetooth (they will initially appear as "input" on first pairing)
 1. **Install** the latest version of the CyberFinger bridge/server.  The installer is available [here](https://github.com/DrSciCortex/CyberFinger_SteamVR/releases)
-1. **Launch server**: Set the server to "gamepad mode", and press "start" button in the server.  Verify that your 2 CyberFingers are detected by the server (it takes about 5 seconds). A diagnostic GUI will appear for left and right controllers near the top of the bridge/server. Pressing joystick and buttons should produce events rendered by the diagnostic GUI. 
+1. **Launch server**: "CyberFinger Bridge" - Set the server to "gamepad mode", and press "start" button in the server.  Verify that your 2 CyberFingers are detected by the server (it takes about 5 seconds). A diagnostic GUI will appear for left and right controllers near the top of the bridge/server. Pressing joystick and buttons should produce events rendered by the diagnostic GUI. 
 1. **Turn on handtracking**: Disable auto switching between controller and hand-tracking in Quest OS settings (Manually select handtracking when using CyberFinger before launching SteamLink).
 1. **Connect your headset to PC with handtracking**: For Meta Quest devices, SteamLink over Virtual Desktop is recommended, due to handtracking limitations of the latter
 1. **Remove all hand gestures** for hand input controller in SteamVR (see video [here](https://www.youtube.com/watch?v=185BYNgHXvI) )
