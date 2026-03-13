@@ -1,7 +1,7 @@
 # CyberFingerMod
 
 A [ResoniteModLoader](https://github.com/resonite-modding-group/ResoniteModLoader) mod for [Resonite](https://resonite.com/) that makes Hand Tracking better by disabling the laser geometry override when the dash is open.
-Should be used in combination with moving the Tool Anchor to the palm of the hand. Also recommended is a Finger Mounted Gamepad (https://scicortex.com/products/cyberfinger-v1-0-beta), and redefining the steam gestures to disable several conflicting gestures.  See **Configuration** below.
+Should be used in combination with moving the Tool Anchor to the palm of the hand. Also recommended is a Finger Mounted Gamepad (https://scicortex.com/products/cyberfinger-v1-0-beta), and redefining the steam gestures to disable several conflicting gestures.  See **Configuration - CyberFingers** below.
 
 ## Resolute Installation
 
@@ -12,7 +12,7 @@ Install Resolute Mod manager (https://github.com/Gawdl3y/resolute), and enable C
 2. Place [CyberFingerMod.dll](https://github.com/DrSciCortex/CyberFingerMod/releases/latest/download/CyberFingerMod.dll) into your `rml_mods` folder. This folder should be at `C:\Program Files (x86)\Steam\steamapps\common\Resonite\rml_mods` for a default install. You can create it if it's missing, or if you launch the game once with ResoniteModLoader installed it will create this folder for you.
 3. Start the game. If you want to verify that the mod is working you can check your Resonite logs.
 
-## Configuration
+## Configuration - CyberFingers
 
 1. **Pair**: Pair both left and right CyberFinger with PC over bluetooth (they will initially appear as "input" on first pairing)
 2. **Install** the latest version of the CyberFinger bridge/server.  The installer is available [here](https://github.com/DrSciCortex/CyberFinger_SteamVR/releases)
