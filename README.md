@@ -1,7 +1,7 @@
 # CyberFingerMod
 
 A [ResoniteModLoader](https://github.com/resonite-modding-group/ResoniteModLoader) mod for [Resonite](https://resonite.com/) that makes Hand Tracking better by disabling the laser geometry override when the dash is open.
-Should be used in combination with moving the Tool Anchor to the palm of the hand. Also recommended is a Finger Mounted Gamepad (https://scicortex.com/products/cyberfinger-v1-0-beta), and redefining the steam gestures to disable several conflicting gestures.  See **Configuration - CyberFingers** below.
+Should be used in combination with moving the Tool Anchor to the palm of the hand. Also recommended is a Finger Mounted Gamepad (https://scicortex.com/products/cyberfinger-v1-0-beta). See **Configuration - CyberFingers** below.
 
 ## Resolute Installation
 
