@@ -21,7 +21,7 @@ Install Resolute Mod manager (https://github.com/Gawdl3y/resolute), and enable C
 1. **Connect your headset to PC with handtracking**: For Meta Quest devices, SteamLink over Virtual Desktop is recommended, due to handtracking limitations of the latter
 1. **Remove all hand gestures** for hand input controller in SteamVR (see video [here](https://www.youtube.com/watch?v=185BYNgHXvI) )
 1. **Disable steam input** for the CyberFinger gamepad for resonite, as it interferes with resonite setting "keep gamepad in focus".
-<img width="1229" height="686" alt="image" src="https://github.com/user-attachments/assets/e0163fc6-6ca7-4851-9906-68e2267f8a59" />
+<img width="600" alt="image" src="https://github.com/user-attachments/assets/e0163fc6-6ca7-4851-9906-68e2267f8a59" />
   
 1. **Keep gamepad in focus**: Load Resonite and enable "keep gamepad in focus" under settings. The allows you to interact with your desktop with mouse and keyboard while in VR, and the CyberFinger events will still go directly to Resonite.
 1. Use ResoniteModSettings to configure the CyberFingerMod in resonite. For example, in those settings you can disable the "virtual keyboard" popping up for text input.  When you've got CyberFingers, you can finally use your real keyboard again!!
