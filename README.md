@@ -30,7 +30,9 @@ Install Resolute Mod manager (https://github.com/Gawdl3y/resolute), and enable C
 <p align="center"><img width="500" alt="image" src="https://github.com/user-attachments/assets/d733d496-a958-4437-9029-66b82dbefee2" /></p>
 
 12. (Recommended) **Install win-f resonite/desktop focus solution** - see below.
- 
+13. (Recommended) **Adjust windows touch keyboard setting** - Under Windows Settings: For the "Show the touch keyboard" setting, use either "When no keyboard attached" or "Never".   
+<p align="center"><img width="500" alt="image" src="https://github.com/user-attachments/assets/7ec54fa8-9fa8-4763-9bef-f19ad4ec7af3" /></p>
+
 
 ## Default Controls Layout
 <p align="center">
