@@ -1,0 +1,18 @@
+{
+    "KPackageStructure": "KWin/Script",
+    "KPlugin": {
+        "Id": "resonitefocus",
+        "Name": "Resonite Focus Toggle",
+        "Description": "Meta+F swaps keyboard/mouse focus between Resonite and the last desktop window",
+        "Version": "1.0",
+        "License": "CC-BY-SA-4.0",
+        "Authors": [
+            {
+                "Name": "DrSciCortex"
+            }
+        ],
+        "EnabledByDefault": false
+    },
+    "X-Plasma-API": "javascript",
+    "X-Plasma-MainScript": "code/main.js"
+}

@@ -44,11 +44,13 @@ Buttons can be reassigned by uploading a revised config .JSON using the quick_cf
 
 ## Recommendation: Install win-f resonite/desktop focus solution
 
-We provide an AutoHotKey v2 script for resonite under ./AHKv2 (Refer to AutoHotKey v2 docs for how to install it and have it auto-launch). 
-
-This script enables keyboard & mouse focus to be swapped between Resonite, and the window manager desktop by pressing win-f.
+This enables keyboard & mouse focus to be swapped between Resonite, and the window manager desktop by pressing win-f.
 This is very useful for interacting with you desktop using mouse and keyboard while in VR/Resonite, something you will spontaneously be interested in doing now that you have CyberFingers!
 **For a demo, checkout this video** [here](https://www.youtube.com/watch?v=dNAswHlMzls).
+
+**Windows:** we provide an AutoHotKey v2 script under [./AHKv2](./AHKv2) (Refer to AutoHotKey v2 docs for how to install it and have it auto-launch).
+
+**Linux / KDE Plasma:** we provide an equivalent KWin script under [./KWin](./KWin) — run `./KWin/install.sh` and press Meta+F. It works on both Wayland and X11 and needs no extra packages. See [KWin/README.md](./KWin/README.md) for troubleshooting and rebinding.
 
 ## Known Issues
 
