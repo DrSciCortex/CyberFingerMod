@@ -22,7 +22,7 @@ using static Elements.Core.Pool;
 namespace CyberFingerMod;
 
 public class CyberFingerMod : ResoniteMod {
-	internal const string VERSION_CONSTANT = "1.9.0";
+	internal const string VERSION_CONSTANT = "1.10.0";
 	public override string Name => "CyberFingerMod";
 	public override string Author => "DrSciCortex";
 	public override string Version => VERSION_CONSTANT;
@@ -56,6 +56,15 @@ public class CyberFingerMod : ResoniteMod {
 			() => true
 		);
 	internal static bool GamepadBindings => _config?.GetValue(GamepadBindingsKey) ?? true;
+
+	[AutoRegisterConfigKey]
+	private static readonly ModConfigurationKey<bool> FollowActiveControllerKey =
+		new ModConfigurationKey<bool>(
+			"FollowActiveController",
+			"Rebind locomotion (move, turn, jump) to the controller in use when you switch back to one Resonite has already seen (e.g. CyberFinger → Quest controllers → CyberFinger). Without it, locomotion stays on the idle controller.",
+			() => true
+		);
+	internal static bool FollowActiveController => _config?.GetValue(FollowActiveControllerKey) ?? true;
 
 	// ── Improved laser filtering ───────────────────────────────────────────
 
@@ -730,6 +739,59 @@ public class CyberFingerMod : ResoniteMod {
 			}
 		}
 
+	}
+
+	// ══════════════════════════════════════════════════════════════════════
+	//  PATCH 2b — VR_Manager.Update  (locomotion follows the controller in use)
+	//
+	//  FrooxEngine binds locomotion (move, turn, jump, anchors) to the
+	//  controller it last registered for each hand
+	//  (DualControllerBindingGenerator → InputInterface.GetVRControllerNode),
+	//  and registers a controller only the first time it sees it. Switching
+	//  back to one it already knows (CyberFinger → Quest controllers →
+	//  CyberFinger) leaves locomotion on the idle one: the stick still works in
+	//  tools, but you can't move or jump. The renderer marks the controller it
+	//  reads for each hand active; when that isn't the hand's registered
+	//  controller, it's registered again, which rebinds the inputs.
+	// ══════════════════════════════════════════════════════════════════════
+	[HarmonyPatch(typeof(VR_Manager), nameof(VR_Manager.Update))]
+	public static class VR_Manager_Update_Patch {
+
+		private static readonly FieldInfo? ControllersField =
+			AccessTools.Field(typeof(VR_Manager), "_controllers");
+
+		static void Postfix(VR_Manager __instance, VR_InputsState state) {
+			if (!CyberFingerMod.FollowActiveController || state?.controllers == null)
+				return;
+			try {
+				InputInterface input = __instance.Input;
+				if (!input.VR_Active || ControllersField?.GetValue(__instance) is not Dictionary<string, ControllerBase> controllers)
+					return;
+
+				// The controller the renderer reads, per hand: only when it's the one (a
+				// hand with two active controllers would flip between them every frame).
+				ControllerBase? left = null, right = null;
+				int leftActive = 0, rightActive = 0;
+				foreach (VR_ControllerState s in state.controllers) {
+					if (s == null || !s.isDeviceActive || s.deviceID == null ||
+						!controllers.TryGetValue(s.deviceID, out ControllerBase? controller))
+						continue;
+					if (controller.Side == Chirality.Left) { left = controller; leftActive++; }
+					else if (controller.Side == Chirality.Right) { right = controller; rightActive++; }
+				}
+				Follow(input, left, leftActive);
+				Follow(input, right, rightActive);
+			} catch (Exception ex) {
+				CyberFingerMod.ReportOnce("VR_Manager.Update", ex);
+			}
+		}
+
+		static void Follow(InputInterface input, ControllerBase? active, int count) {
+			if (active == null || count != 1 || input.GetVRControllerNode(active.Side) == active)
+				return;
+			Msg($"{active.Side} hand: Resonite reads {active.Name} now, rebinding locomotion to it");
+			input.RegisterController(active);
+		}
 	}
 
 	// ══════════════════════════════════════════════════════════════════════
