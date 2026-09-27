@@ -22,7 +22,7 @@ using static Elements.Core.Pool;
 namespace CyberFingerMod;
 
 public class CyberFingerMod : ResoniteMod {
-	internal const string VERSION_CONSTANT = "1.8.28";
+	internal const string VERSION_CONSTANT = "1.9.0";
 	public override string Name => "CyberFingerMod";
 	public override string Author => "DrSciCortex";
 	public override string Version => VERSION_CONSTANT;
@@ -48,6 +48,15 @@ public class CyberFingerMod : ResoniteMod {
 		);
 	internal static bool HideVirtualKeyboard => _config?.GetValue(HideVirtualKeyboardKey) ?? true;
 
+	[AutoRegisterConfigKey]
+	private static readonly ModConfigurationKey<bool> GamepadBindingsKey =
+		new ModConfigurationKey<bool>(
+			"GamepadBindings",
+			"Bind the CyberFinger gamepad (the bridge's gamepad mode) to Resonite's VR inputs and Raw Data Tools. Turn off with the CyberFinger SteamVR driver: Resonite's own gamepad bindings then apply. Rebinding happens when Resonite next binds its inputs (switching controllers, or a restart).",
+			() => true
+		);
+	internal static bool GamepadBindings => _config?.GetValue(GamepadBindingsKey) ?? true;
+
 	// ── Improved laser filtering ───────────────────────────────────────────
 
 	[AutoRegisterConfigKey]
@@ -63,10 +72,10 @@ public class CyberFingerMod : ResoniteMod {
 	private static readonly ModConfigurationKey<bool> FilteringEnabledKey =
 		new ModConfigurationKey<bool>(
 			"FilteringEnabled",
-			"Enable laser pointer filtering. Set true for hand tracking, false for physical controllers.",
-			() => true
+			"Enable laser pointer filtering (off by default). Set true for hand tracking, false for physical controllers.",
+			() => false
 		);
-	internal static bool FilteringEnabled => _config?.GetValue(FilteringEnabledKey) ?? true;
+	internal static bool FilteringEnabled => _config?.GetValue(FilteringEnabledKey) ?? false;
 
 	[AutoRegisterConfigKey]
 	private static readonly ModConfigurationKey<float> ArmBlendWeightKey =
@@ -145,6 +154,17 @@ public class CyberFingerMod : ResoniteMod {
 		harmony.PatchAll();
 
 		Msg("Initalized CyberFingerMod");
+	}
+
+	// A patch that throws breaks the engine update it sits in, every frame.
+	// The per-frame patches catch, report their first failure here, and leave
+	// Resonite's own behaviour in place.
+	private static readonly HashSet<string> _reportedFailures = new HashSet<string>();
+	internal static void ReportOnce(string patch, Exception ex) {
+		lock (_reportedFailures) {
+			if (!_reportedFailures.Add(patch)) return;
+		}
+		Error($"{patch} patch failed, using Resonite's own behaviour (reported once): {ex}");
 	}
 
 	// ── ModSettings custom UI integration ─────────────────────────────────
@@ -565,94 +585,89 @@ public class CyberFingerMod : ResoniteMod {
 	// ══════════════════════════════════════════════════════════════════════
 	//  PATCH 1 — UpdateUserspaceToolOffsets  (userspace laser)
 	//
-	//  Operates in hand-LOCAL space. Estimated elbow = (0, 0.30, 0) in that
-	//  local frame (controller local-up points toward shoulder/elbow).
+	//  A postfix: Resonite's method runs whole (in userspace it ends a grab
+	//  while the world hand holds something, and reports the laser state),
+	//  then the userspace laser is placed again, in hand-LOCAL space:
+	//    a) ForceOverride — where the world's laser is, without the snap back
+	//       to the raw tip (a laser moved on the avatar stays moved with the
+	//       dash open)
+	//    b) ImprovedFiltering — with its direction filtered
+	//  Replacing the method meant copying its private EndGrab() call by
+	//  reflection. Once EndGrab gained a parameter, that call threw every
+	//  frame the world hand held something, and took the userspace hand's
+	//  input (dash, laser) down with it.
 	// ══════════════════════════════════════════════════════════════════════
 	[HarmonyPatch(typeof(InteractionHandler), "UpdateUserspaceToolOffsets")]
 	public static class InteractionHandler_UpdateUserspaceToolOffsets_Patch {
 
-		private static readonly MethodInfo EndGrabMethod =
-			typeof(InteractionHandler).GetMethod("EndGrab", BindingFlags.Instance | BindingFlags.NonPublic)
-			?? throw new MissingMethodException("InteractionHandler.EndGrab not found");
+		private static readonly FieldInfo? LaserSlotField =
+			AccessTools.Field(typeof(InteractionHandler), "_laserSlot");
 
-		private static readonly FieldInfo LaserSlotField =
-			typeof(InteractionHandler).GetField("_laserSlot", BindingFlags.Instance | BindingFlags.NonPublic)
-			?? throw new MissingFieldException("InteractionHandler._laserSlot not found");
+		static void Postfix(InteractionHandler __instance) {
 
-		static bool Prefix(InteractionHandler __instance) {
+			// Non-userspace branch (world-space world): the original calls
+			// SetWorldControllerData, which feeds the userspace branch next
+			// frame. Left as it is.
+			if (__instance.World != Userspace.UserspaceWorld)
+				return;
 
-			bool userspace = __instance.World == Userspace.UserspaceWorld;
+			bool filtering = CyberFingerMod.ImprovedFiltering && CyberFingerMod.FilteringEnabled;
+			if (!CyberFingerMod.ForceOverride && !filtering)
+				return; // the original's placement stands
 
-			// Non-userspace branch (world-space world): must always run via
-			// original — it calls SetWorldControllerData which feeds the pipe
-			// for the userspace branch next frame. Never intercept it.
-			if (!userspace)
-				return true;
+			try {
+				Userspace.ControllerData controllerData = Userspace.GetControllerData(__instance.Side);
 
-			// Userspace branch: we always take over (replaces the original
-			// entirely) so we can:
-			//   a) optionally suppress the snap-to-raw correction (ForceOverride)
-			//   b) optionally apply hand-tracking filtering (ImprovedFiltering)
-			// Both are independent — ForceOverride only controls (a), filtering
-			// only controls (b).
+				// The original's tip/forward selection: start from the
+				// engine's interpolated controllerData values, then snap to
+				// raw if they've drifted too far.
+				float3 targetLocalTip     = controllerData.pointOffset;
+				float3 targetLocalForward = controllerData.forward;
+				// ForceOverride=true  → skip correction (preserve custom avatar laser placement)
+				// ForceOverride=false → allow correction if drifted (original behaviour)
+				if (!CyberFingerMod.ForceOverride) {
+					float3 localTip2     = __instance.Slot.GlobalPointToLocal(__instance.RawCurrentTip);
+					float3 localForward2 = __instance.Slot.GlobalDirectionToLocal(__instance.RawCurrentTipForward);
+					float  num2  = MathX.Distance(in targetLocalTip, in localTip2);
+					float  angle = MathX.Angle(in targetLocalForward, in localForward2);
+					if (num2 > 0.3f || angle > 45f) {
+						targetLocalTip     = localTip2;
+						targetLocalForward = localForward2;
+					}
+				}
 
-			Userspace.ControllerData controllerData = Userspace.GetControllerData(__instance.Side);
+				// ── Improved filtering ───────────────────────────────────
+				// Applied after ForceOverride selection so that avatar-displaced
+				// laser tips are respected. We convert targetLocalTip/Forward back
+				// to world space for the filter, then back to local.
+				if (filtering) {
+					float3 worldTip     = __instance.Slot.LocalPointToGlobal(in targetLocalTip);
+					float3 worldForward = __instance.Slot.LocalDirectionToGlobal(in targetLocalForward);
 
-			controllerData.userspaceController    = __instance;
-			controllerData.userspaceHoldingThings = __instance.IsHoldingObjects;
-			if (controllerData.worldHoldingThings) {
-				EndGrabMethod.Invoke(__instance, null);
+					float3 headPos      = __instance.LocalUserRoot?.HeadPosition ?? worldTip;
+					float  userScale    = __instance.LocalUserRoot?.GlobalScale ?? 1f;
+					float3 worldSternum = new float3(headPos.x, headPos.y + CyberFingerMod.SternumOffset * userScale, headPos.z);
+
+					float3 filteredWorldForward = FilterForward(
+						_userspaceFilterStates[__instance.Side],
+						in worldTip,
+						in worldForward,
+						in worldSternum,
+						__instance.World.Time.WorldTime);
+
+					targetLocalForward = __instance.Slot.GlobalDirectionToLocal(in filteredWorldForward);
+					// targetLocalTip unchanged — no position filtering
+				}
+				// ── End filtering ─────────────────────────────────────────
+
+				if (LaserSlotField?.GetValue(__instance) is not SyncRef<Slot> { Target: Slot laserSlot })
+					return;
+				floatQ localRotation = floatQ.LookRotation(in targetLocalForward, float3.Up);
+				laserSlot.LocalPosition = __instance.Slot.LocalPointToSpace(in targetLocalTip,   laserSlot.Parent);
+				laserSlot.LocalRotation = __instance.Slot.LocalRotationToSpace(in localRotation, laserSlot.Parent);
+			} catch (Exception ex) {
+				CyberFingerMod.ReportOnce("UpdateUserspaceToolOffsets", ex);
 			}
-
-			// Replicate original tip/forward selection exactly —
-			// start from the engine's interpolated controllerData values,
-			// then snap to raw if they've drifted too far.
-			float3 localTip2     = __instance.Slot.GlobalPointToLocal(__instance.RawCurrentTip);
-			float3 localForward2 = __instance.Slot.GlobalDirectionToLocal(__instance.RawCurrentTipForward);
-			float3 targetLocalTip     = controllerData.pointOffset;
-			float3 targetLocalForward = controllerData.forward;
-			float  num2  = MathX.Distance(in targetLocalTip, in localTip2);
-			float  angle = MathX.Angle(in targetLocalForward, in localForward2);
-			// ForceOverride=true  → skip correction (preserve custom avatar laser placement)
-			// ForceOverride=false → allow correction if drifted (original behaviour)
-			if (!CyberFingerMod.ForceOverride && (num2 > 0.3f || angle > 45f)) {
-				targetLocalTip     = localTip2;
-				targetLocalForward = localForward2;
-			}
-
-			// ── Improved filtering ───────────────────────────────────
-			// Applied after ForceOverride selection so that avatar-displaced
-			// laser tips are respected. We convert targetLocalTip/Forward back
-			// to world space for the filter, then back to local.
-			if (CyberFingerMod.ImprovedFiltering && CyberFingerMod.FilteringEnabled) {
-				float3 worldTip     = __instance.Slot.LocalPointToGlobal(in targetLocalTip);
-				float3 worldForward = __instance.Slot.LocalDirectionToGlobal(in targetLocalForward);
-
-				float3 headPos      = __instance.LocalUserRoot?.HeadPosition ?? worldTip;
-				float  userScale    = __instance.LocalUserRoot?.GlobalScale ?? 1f;
-				float3 worldSternum = new float3(headPos.x, headPos.y + CyberFingerMod.SternumOffset * userScale, headPos.z);
-
-				float3 filteredWorldForward = FilterForward(
-					_userspaceFilterStates[__instance.Side],
-					in worldTip,
-					in worldForward,
-					in worldSternum,
-					__instance.World.Time.WorldTime);
-
-				targetLocalForward = __instance.Slot.GlobalDirectionToLocal(in filteredWorldForward);
-				// targetLocalTip unchanged — no position filtering
-			}
-			// ── End filtering ─────────────────────────────────────────
-
-			floatQ localRotation = floatQ.LookRotation(in targetLocalForward, float3.Up);
-
-			var laserSlotRef = (SyncRef<Slot>)LaserSlotField.GetValue(__instance)!;
-			Slot laserSlot   = laserSlotRef.Target;
-			laserSlot.LocalPosition = __instance.Slot.LocalPointToSpace(in targetLocalTip,   laserSlot.Parent);
-			laserSlot.LocalRotation = __instance.Slot.LocalRotationToSpace(in localRotation, laserSlot.Parent);
-			Userspace.SetUserspaceLaserActive(__instance.Side, __instance.Laser.LaserActive, __instance.Laser.CurrentHit != null);
-
-			return false;
 		}
 	}
 
@@ -671,9 +686,8 @@ public class CyberFingerMod : ResoniteMod {
 	[HarmonyPatch(typeof(InteractionHandler), "UpdateLaserRoot")]
 	public static class InteractionHandler_UpdateLaserRoot_Patch {
 
-		private static readonly FieldInfo LaserSlotField =
-			typeof(InteractionHandler).GetField("_laserSlot", BindingFlags.Instance | BindingFlags.NonPublic)
-			?? throw new MissingFieldException("InteractionHandler._laserSlot not found");
+		private static readonly FieldInfo? LaserSlotField =
+			AccessTools.Field(typeof(InteractionHandler), "_laserSlot");
 
 		static bool Prefix(InteractionHandler __instance) {
 
@@ -687,34 +701,42 @@ public class CyberFingerMod : ResoniteMod {
 			if (!CyberFingerMod.FilteringEnabled)
 				return true;
 
-			float3 worldTip     = __instance.CurrentTip;
-			float3 worldForward = __instance.CurrentTipForward;
+			try {
+				float3 worldTip     = __instance.CurrentTip;
+				float3 worldForward = __instance.CurrentTipForward;
 
-			// Sternum anchor: head dropped to chest height, avatar-scale-aware
-			float3 headPos      = __instance.LocalUserRoot?.HeadPosition ?? worldTip;
-			float  userScale    = __instance.LocalUserRoot?.GlobalScale ?? 1f;
-			float3 worldSternum = new float3(headPos.x, headPos.y + CyberFingerMod.SternumOffset * userScale, headPos.z);
+				// Sternum anchor: head dropped to chest height, avatar-scale-aware
+				float3 headPos      = __instance.LocalUserRoot?.HeadPosition ?? worldTip;
+				float  userScale    = __instance.LocalUserRoot?.GlobalScale ?? 1f;
+				float3 worldSternum = new float3(headPos.x, headPos.y + CyberFingerMod.SternumOffset * userScale, headPos.z);
 
-			float3 filteredForward = FilterForward(
-				_worldFilterStates[__instance.Side],
-				in worldTip,
-				in worldForward,
-				in worldSternum,
-				__instance.World.Time.WorldTime);
+				float3 filteredForward = FilterForward(
+					_worldFilterStates[__instance.Side],
+					in worldTip,
+					in worldForward,
+					in worldSternum,
+					__instance.World.Time.WorldTime);
 
-			// Tip passes through unfiltered — no displacement of laser origin.
-			var laserSlotRef = (SyncRef<Slot>)LaserSlotField.GetValue(__instance)!;
-			Slot laserSlot   = laserSlotRef.Target;
-			laserSlot.GlobalPosition = worldTip;
-			laserSlot.GlobalRotation = floatQ.LookRotation(in filteredForward, float3.Up);
+				if (LaserSlotField?.GetValue(__instance) is not SyncRef<Slot> { Target: Slot laserSlot })
+					return true;
+				// Tip passes through unfiltered — no displacement of laser origin.
+				laserSlot.GlobalPosition = worldTip;
+				laserSlot.GlobalRotation = floatQ.LookRotation(in filteredForward, float3.Up);
 
-			return false;
+				return false;
+			} catch (Exception ex) {
+				CyberFingerMod.ReportOnce("UpdateLaserRoot", ex);
+				return true;
+			}
 		}
 
 	}
 
 	// ══════════════════════════════════════════════════════════════════════
-	//  PATCH 3 — RawDataTool.UpdateValues  (gamepad support — unchanged)
+	//  PATCH 3 — RawDataTool.UpdateValues  (gamepad support)
+	//
+	//  Only with GamepadBindings: without it the tool reads the controllers
+	//  as Resonite does.
 	// ══════════════════════════════════════════════════════════════════════
 	[HarmonyPatch(typeof(RawDataTool), "UpdateValues")]
 	public static class RawDataTool_UpdateValues_Patch {
@@ -742,6 +764,17 @@ public class CyberFingerMod : ResoniteMod {
 			AccessTools.Field(typeof(GamepadManager), "_gamepads");
 
 		static bool Prefix(RawDataTool __instance) {
+			if (!CyberFingerMod.GamepadBindings)
+				return true;
+			try {
+				return MergeGamepad(__instance);
+			} catch (Exception ex) {
+				CyberFingerMod.ReportOnce("RawDataTool.UpdateValues", ex);
+				return true;
+			}
+		}
+
+		static bool MergeGamepad(RawDataTool __instance) {
 			var worker = (Worker)__instance;
 			var world  = worker.World;
 			var ah     = ((Tool)__instance).ActiveHandler;
@@ -832,7 +865,10 @@ public class CyberFingerMod : ResoniteMod {
 	}
 
 	// ══════════════════════════════════════════════════════════════════════
-	//  PATCH 5 — StandardGamepad.Bind  (unchanged)
+	//  PATCH 5 — StandardGamepad.Bind
+	//
+	//  Only with GamepadBindings: without it Resonite's own gamepad bindings
+	//  apply (the CyberFinger SteamVR driver is a controller, not a gamepad).
 	// ══════════════════════════════════════════════════════════════════════
 	[HarmonyPatch(typeof(StandardGamepad), "Bind")]
 	public static class StandardGamepad_Bind_Patch {
@@ -857,6 +893,8 @@ public class CyberFingerMod : ResoniteMod {
 			new VR_SingleLocomotionTurn(InputNode.Analog2D(__instance.LeftThumbstick).X());
 
 		static bool Prefix(StandardGamepad __instance, InputGroup group) {
+			if (!CyberFingerMod.GamepadBindings)
+				return true;
 
 			if (group is SmoothThreeAxisLocomotionInputs threeAxisLocomotion) {
 				threeAxisLocomotion.Move.AddBinding(GenerateScreenDirection(__instance), __instance);

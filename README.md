@@ -33,6 +33,19 @@ Install Resolute Mod manager (https://github.com/Gawdl3y/resolute), and enable C
 13. (Recommended) **Adjust windows touch keyboard setting** - Under Windows Settings: For the "Show the touch keyboard" setting, use either "When no keyboard attached" or "Never".   
 <p align="center"><img width="500" alt="image" src="https://github.com/user-attachments/assets/7ec54fa8-9fa8-4763-9bef-f19ad4ec7af3" /></p>
 
+## Settings
+
+Set these in ResoniteModSettings, or in `rml_config/CyberFingerMod.json`.
+
+| Setting | Default | What it does |
+|---|---|---|
+| `ForceOverride` | on | With the dash open, the laser comes from where your avatar puts it (the palm, say), not snapped back to the raw controller tip. |
+| `HideVirtualKeyboard` | on | Never shows Resonite's virtual keyboard: use your real one. |
+| `GamepadBindings` | on | Binds the CyberFinger gamepad (the bridge's gamepad mode) to Resonite's VR inputs and to Raw Data Tools. When it's off, Resonite's own gamepad bindings apply. The change takes effect the next time Resonite binds its inputs (switching controllers, or a restart). |
+| `FilteringEnabled` | off | Smooths the laser's direction (a sternum blend plus a UKF filter) for hand tracking. It needs `ImprovedFiltering` on too. The `Kalman*`, `DeadBand*`, `ArmBlendWeight` and `SternumOffset` settings tune it. |
+| `ImprovedFiltering` | on | Allows the smoothing above; `FilteringEnabled` switches it on. |
+
+**With the CyberFinger SteamVR driver**, the gloves are SteamVR controllers, not a gamepad. Turn off `GamepadBindings`. The mod then only moves the laser and hides the keyboard.
 
 ## Default Controls Layout
 <p align="center">
