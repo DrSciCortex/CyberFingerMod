@@ -42,11 +42,11 @@ Set these in ResoniteModSettings, or in `rml_config/CyberFingerMod.json`.
 | `ForceOverride` | on | With the dash open, the laser comes from where your avatar puts it (the palm, say), not snapped back to the raw controller tip. |
 | `HideVirtualKeyboard` | on | Never shows Resonite's virtual keyboard: use your real one. |
 | `GamepadBindings` | on | Binds the CyberFinger gamepad (the bridge's gamepad mode) to Resonite's VR inputs and to Raw Data Tools. When it's off, Resonite's own gamepad bindings apply. The change takes effect the next time Resonite binds its inputs (switching controllers, or a restart). |
-| `FollowActiveController` | on | Rebinds locomotion (move, turn, jump) to the controller you're using when you switch back to one Resonite has already seen, for example gloves → Quest controllers → gloves. Resonite binds locomotion only to the controller it registered last, so without this setting locomotion stays on the idle one and the sticks work only in tools. |
+| `FollowActiveController` | on | Rebinds locomotion (move, turn, jump) to the controller you're using when you switch back to one Resonite has already seen, for example CyberFingers → Quest controllers → CyberFingers. Resonite binds locomotion only to the controller it registered last, so without this setting locomotion stays on the idle one and the sticks work only in tools. |
 | `FilteringEnabled` | off | Smooths the laser's direction (a sternum blend plus a UKF filter) for hand tracking. It needs `ImprovedFiltering` on too. The `Kalman*`, `DeadBand*`, `ArmBlendWeight` and `SternumOffset` settings tune it. |
 | `ImprovedFiltering` | on | Allows the smoothing above; `FilteringEnabled` switches it on. |
 
-**With the CyberFinger SteamVR driver**, the gloves are SteamVR controllers, not a gamepad. Turn off `GamepadBindings`. The mod then only moves the laser and hides the keyboard.
+**With the CyberFinger SteamVR driver**, the CyberFingers are SteamVR controllers, not a gamepad. Turn off `GamepadBindings`. The mod then only moves the laser and hides the keyboard.
 
 ## Default Controls Layout
 <p align="center">
