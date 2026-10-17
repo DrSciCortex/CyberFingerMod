@@ -12,6 +12,28 @@ Install Resolute Mod manager (https://github.com/Gawdl3y/resolute), and enable C
 2. Place [CyberFingerMod.dll](https://github.com/DrSciCortex/CyberFingerMod/releases/latest/download/CyberFingerMod.dll) into your `rml_mods` folder. This folder should be at `C:\Program Files (x86)\Steam\steamapps\common\Resonite\rml_mods` for a default install. You can create it if it's missing, or if you launch the game once with ResoniteModLoader installed it will create this folder for you.
 3. Start the game. If you want to verify that the mod is working you can check your Resonite logs.
 
+## Building from Source
+
+**Requirements**
+- [.NET SDK 10](https://dotnet.microsoft.com/download/dotnet/10.0) or later, since the mod targets `net10.0-windows`. Check what you have with `dotnet --list-sdks`. You don't need Visual Studio.
+- Resonite with [ResoniteModLoader](https://github.com/resonite-modding-group/ResoniteModLoader) installed on the build machine. The build compiles against DLLs from your Resonite folder: `FrooxEngine.dll`, `Elements.Core.dll`, `Renderite.Shared.dll`, `Libraries\ResoniteModLoader.dll` and `rml_libs\0Harmony.dll`.
+
+**Build**
+```
+git clone https://github.com/DrSciCortex/CyberFingerMod.git
+cd CyberFingerMod
+dotnet build -c Release
+```
+
+The DLL is written to `CyberFingerMod/bin/Release/net10.0-windows/CyberFingerMod.dll`, and the build then copies it into Resonite's `rml_mods` folder, so it loads the next time you start Resonite. A Debug build (`dotnet build` without `-c Release`) goes to `CyberFingerMod/bin/Debug/net10.0-windows/`, with debug symbols embedded, and is copied the same way.
+
+Close Resonite before you build. While it's running, the DLL in `rml_mods` is locked: the copy fails with a warning, and the build still reports success.
+
+**Options**
+- The build finds Resonite in the default Steam location: `C:\Program Files (x86)\Steam\steamapps\common\Resonite\` on Windows, or `~/.steam/steam/steamapps/common/Resonite/` on Linux. If yours is elsewhere, pass the path with forward slashes and a trailing slash, for example `dotnet build -c Release -p:ResonitePath=D:/SteamLibrary/steamapps/common/Resonite/`.
+- To build without installing, add `-p:CopyToMods=false`.
+- On Linux, also add `-p:EnableWindowsTargeting=true`, because the project targets Windows.
+
 ## Configuration - CyberFingers
 
 1. **Pair**: Pair both left and right CyberFinger with PC over bluetooth (they will initially appear as "input" on first pairing)
