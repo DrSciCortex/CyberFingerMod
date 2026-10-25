@@ -81,10 +81,17 @@ Buttons can be reassigned by uploading a revised config .JSON using the quick_cf
 ## Recommendation: Install win-f resonite/desktop focus solution
 
 This enables keyboard & mouse focus to be swapped between Resonite, and the window manager desktop by pressing win-f.
+On Windows, if Delphium (Resonite private universe) is running it is included too: win-f cycles Delphium -> Resonite -> desktop, skipping whichever isn't running.
 This is very useful for interacting with you desktop using mouse and keyboard while in VR/Resonite, something you will spontaneously be interested in doing now that you have CyberFingers!
 **For a demo, checkout this video** [here](https://www.youtube.com/watch?v=dNAswHlMzls).
 
-**Windows:** we provide an AutoHotKey v2 script under [./AHKv2](./AHKv2) (Refer to AutoHotKey v2 docs for how to install it and have it auto-launch).
+**Windows:** we provide an AutoHotKey v2 script, [AHKv2/resonite_winf_focus.ahk](./AHKv2/resonite_winf_focus.ahk). To set it up:
+1. Install AutoHotKey v2 from the [download page](https://www.autohotkey.com/download/) (run the installer and accept the defaults, see [How to Install AutoHotkey](https://www.autohotkey.com/docs/v2/howto/Install.htm)), or run `winget install AutoHotkey.AutoHotkey`.
+1. Save `resonite_winf_focus.ahk` somewhere permanent, e.g. `Documents\AutoHotkey\`.
+1. Double-click it to run it. A green "H" icon appears in the system tray; press win-f to test.
+1. To have it auto-launch at login: right-click the file → *Show more options* → *Create shortcut*, then press win-r, type `shell:startup`, press Enter, and move the shortcut into the folder that opens (see the [AutoHotKey FAQ](https://www.autohotkey.com/docs/v2/FAQ.htm#Startup)).
+
+To stop or reload it, right-click the tray icon. Full docs: [AutoHotKey v2 documentation](https://www.autohotkey.com/docs/v2/).
 
 **Linux / KDE Plasma:** we provide an equivalent KWin script under [./KWin](./KWin) — run `./KWin/install.sh` and press Meta+F. It works on both Wayland and X11 and needs no extra packages. See [KWin/README.md](./KWin/README.md) for troubleshooting and rebinding.
 

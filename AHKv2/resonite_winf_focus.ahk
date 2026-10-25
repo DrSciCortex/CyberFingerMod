@@ -8,7 +8,8 @@
 #UseHook
 CoordMode "Mouse", "Screen"  ; store/restore in screen coordinates
 
-; Win+F toggles focus to/from Resonite, restoring mouse only for the previous window
+; Win+F cycles focus Delphium -> Resonite -> previous window, restoring mouse only for the previous window.
+; Whichever of Delphium/Resonite isn't running is skipped, so with just one it's a plain toggle.
 #f::
 {
     static busy := false
@@ -19,10 +20,17 @@ CoordMode "Mouse", "Screen"  ; store/restore in screen coordinates
         return
     busy := true
 
-    targetCriteria := "Resonite ahk_class UnityWndClass ahk_exe Renderite.Renderer.exe"
-    targetHwnd := WinExist(targetCriteria)
-    if !targetHwnd {
-        MsgBox "Resonite window not found.", "Resonite Focus", "Icon!"
+    ; Cycle order. Delphium (Resonite private universe) runs the same renderer; only the window title differs.
+    targetCriteria := [
+        "Delphium ahk_class UnityWndClass ahk_exe Renderite.Renderer.exe",
+        "Resonite ahk_class UnityWndClass ahk_exe Renderite.Renderer.exe"
+    ]
+    targets := []
+    for crit in targetCriteria
+        if hwnd := WinExist(crit)
+            targets.Push(hwnd)
+    if !targets.Length {
+        MsgBox "Delphium/Resonite window not found.", "Resonite Focus", "Icon!"
         busy := false
         return
     }
@@ -30,28 +38,38 @@ CoordMode "Mouse", "Screen"  ; store/restore in screen coordinates
     curr := WinActive("A")
     MouseGetPos &mx, &my
 
-    ; If Resonite is minimized, restore it first
-    if WinGetMinMax("ahk_id " targetHwnd) = -1
-        WinRestore "ahk_id " targetHwnd
+    ; Position of the active window in the cycle (0 = not one of ours)
+    idx := 0
+    for i, hwnd in targets
+        if (hwnd = curr)
+            idx := i
 
-    if (curr != targetHwnd) {
-        ; Going TO Resonite: remember the current window + its mouse pos
-        lastWin := curr
-        lastMx := mx, lastMy := my
+    if (idx < targets.Length) {
+        if !idx {
+            ; Entering the cycle: remember the current window + its mouse pos
+            lastWin := curr
+            lastMx := mx, lastMy := my
+        }
+        nextHwnd := targets[idx + 1]
 
-        WinActivate "ahk_id " targetHwnd
-        WinWaitActive "ahk_id " targetHwnd, , 0.4
+        ; If it's minimized, restore it first
+        if WinGetMinMax("ahk_id " nextHwnd) = -1
+            WinRestore "ahk_id " nextHwnd
+
+        WinActivate "ahk_id " nextHwnd
+        WinWaitActive "ahk_id " nextHwnd, , 0.4
         ; Do NOT move mouse here (Resonite manages its own cursor)
     } else {
-        ; Leaving Resonite: just go back and restore previous window's mouse pos if known
+        ; Leaving the last one: just go back and restore previous window's mouse pos if known
         if lastWin && WinExist("ahk_id " lastWin) {
             WinActivate "ahk_id " lastWin
             WinWaitActive "ahk_id " lastWin, , 0.4
             if (lastMx != "" && lastMy != "")
                 MouseMove lastMx, lastMy, 0
         } else {
-            ; No valid previous window: minimize Resonite (no mouse restore)
-            WinMinimize "ahk_id " targetHwnd
+            ; No valid previous window: minimize them all (no mouse restore)
+            for hwnd in targets
+                WinMinimize "ahk_id " hwnd
         }
     }
 
