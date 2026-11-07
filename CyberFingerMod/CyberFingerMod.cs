@@ -860,8 +860,8 @@ public class CyberFingerMod : ResoniteMod {
 			bool   gpSecondary = false;
 
 			var inputInterface = worker.InputInterface;
-			var gm   = (GamepadManager)GMField.GetValue(inputInterface);
-			var dict = gm != null ? (Dictionary<string, StandardGamepad>)GamepadsField.GetValue(gm) : null;
+			var gm   = (GamepadManager?)GMField.GetValue(inputInterface);
+			var dict = gm != null ? (Dictionary<string, StandardGamepad>?)GamepadsField.GetValue(gm) : null;
 			var gamepad = dict?.Values.FirstOrDefault();
 
 			if (gamepad != null && (__instance.Equipped?.Value ?? false)) {
@@ -1006,15 +1006,15 @@ public class CyberFingerMod : ResoniteMod {
 			if (group is DevToolInputs devTool) {
 				if (devTool.Side == Chirality.Left) {
 					Msg("Added Left DevToolInputs");
-					devTool.Focus.AddBinding(InputNode.Digital(__instance.LeftThumbstickClick), __instance, null, 20000);
-					devTool.Inspector.AddBinding(InputNode.Digital(__instance.X), __instance, null, 20000);
-					devTool.Create.AddBinding(InputNode.Digital(__instance.Y), __instance, null, 20000);
+					devTool.Focus.AddBinding(InputNode.Digital(__instance.LeftThumbstickClick), __instance, null!, 20000);
+					devTool.Inspector.AddBinding(InputNode.Digital(__instance.X), __instance, null!, 20000);
+					devTool.Create.AddBinding(InputNode.Digital(__instance.Y), __instance, null!, 20000);
 				}
 				if (devTool.Side == Chirality.Right) {
 					Msg("Added Right DevToolInputs");
-					devTool.Focus.AddBinding(InputNode.Digital(__instance.RightThumbstickClick), __instance, null, 20000);
-					devTool.Inspector.AddBinding(InputNode.Digital(__instance.A), __instance, null, 20000);
-					devTool.Create.AddBinding(InputNode.Digital(__instance.B), __instance, null, 20000);
+					devTool.Focus.AddBinding(InputNode.Digital(__instance.RightThumbstickClick), __instance, null!, 20000);
+					devTool.Inspector.AddBinding(InputNode.Digital(__instance.A), __instance, null!, 20000);
+					devTool.Create.AddBinding(InputNode.Digital(__instance.B), __instance, null!, 20000);
 				}
 			}
 
